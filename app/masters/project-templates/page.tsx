@@ -383,7 +383,7 @@ export default function ProjectTemplatesMaster() {
                                                     <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[180px] max-h-52 overflow-y-auto">
                                                         {moodBoardOptions.filter(opt => !stage.modules.includes(opt)).length === 0 ? (
                                                             <p className="text-xs text-gray-400 px-3 py-3 text-center">
-                                                                No options available.<br />Add them in Project Mood Board.
+                                                                No options available.<br />Add them in Project Work Board.
                                                             </p>
                                                         ) : (
                                                             moodBoardOptions

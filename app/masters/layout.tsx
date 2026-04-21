@@ -18,7 +18,7 @@ export default function MastersLayout({
         { name: 'Teams', href: '/masters/teams', icon: Network },
         { name: 'Vendors', href: '/masters/vendors', icon: Tag },
         { name: 'Templates', href: '/masters/project-templates', icon: Layers },
-        { name: 'Mood Board', href: '/masters/mood-board', icon: Settings },
+        { name: 'Work Board', href: '/masters/mood-board', icon: Settings },
     ];
 
     const pathname = usePathname();

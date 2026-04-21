@@ -89,7 +89,7 @@ export default function ProjectMoodBoardMaster() {
         <div className="space-y-6 p-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Project Mood Board</h1>
+                    <h1 className="text-2xl font-bold text-foreground">Project Work Board</h1>
                     <p className="text-muted-foreground mt-1">Define options that can be assigned to stages inside project templates.</p>
                 </div>
                 <button

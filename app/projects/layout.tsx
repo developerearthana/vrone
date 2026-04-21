@@ -3,14 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, List, Kanban, CheckSquare } from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const projectsLinks = [
     { name: 'Dashboard', href: '/projects', icon: LayoutDashboard },
-    { name: 'List', href: '/projects/list', icon: List },
-    { name: 'Board', href: '/projects/board', icon: Kanban },
-    { name: 'Tasks', href: '/projects/tasks', icon: CheckSquare },
 ];
 
 export default function ProjectsLayout({

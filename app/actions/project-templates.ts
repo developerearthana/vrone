@@ -89,7 +89,21 @@ export async function getProjectTemplates() {
     if (count === 0) {
         await ProjectTemplate.insertMany(SEED_TEMPLATES);
     }
-    const templates = await ProjectTemplate.find({ isActive: true }).sort({ createdAt: 1 }).lean();
+    const templates = await ProjectTemplate.find({ isActive: true }).sort({ createdAt: 1 }).lean() as any[];
+
+    // Auto-fix missing stage ids across all templates
+    for (const t of templates) {
+        const needsFix = t.stages?.some((s: any) => !s.id);
+        if (needsFix) {
+            const fixed = (t.stages || []).map((s: any, i: number) => ({
+                ...s,
+                id: s.id || `s-${s.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${i}`,
+            }));
+            await ProjectTemplate.findByIdAndUpdate(t._id, { $set: { stages: fixed } });
+            t.stages = fixed;
+        }
+    }
+
     return { success: true, data: JSON.parse(JSON.stringify(templates)) };
 }
 
@@ -133,8 +147,22 @@ export async function deleteProjectTemplate(id: string) {
 export async function getProjectTemplateByName(name: string) {
     await connectToDatabase();
     try {
-        const template = await ProjectTemplate.findOne({ name, isActive: true }).lean();
-        return { success: true, data: template ? JSON.parse(JSON.stringify(template)) : null };
+        const template = await ProjectTemplate.findOne({ name, isActive: true }).lean() as any;
+        if (!template) return { success: true, data: null };
+
+        // Auto-fix: stages missing an id get a stable id generated from their name+order
+        // This runs once and saves to DB so IDs are stable going forward
+        const needsFix = template.stages?.some((s: any) => !s.id);
+        if (needsFix) {
+            const fixed = (template.stages || []).map((s: any, i: number) => ({
+                ...s,
+                id: s.id || `s-${s.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${i}`,
+            }));
+            await ProjectTemplate.findByIdAndUpdate(template._id, { $set: { stages: fixed } });
+            template.stages = fixed;
+        }
+
+        return { success: true, data: JSON.parse(JSON.stringify(template)) };
     } catch (error: any) {
         return { success: false, error: error.message };
     }

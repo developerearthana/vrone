@@ -112,7 +112,7 @@ export class ProjectService {
     /**
      * Update project
      */
-    async updateProject(id: string, data: Partial<ProjectData>) {
+    async updateProject(id: string, data: any) {
         await connectToDatabase();
         const sanitized = sanitizeObject(data);
 
@@ -125,6 +125,16 @@ export class ProjectService {
         if (!project) throw new Error("Project not found");
 
         return JSON.parse(JSON.stringify(project));
+    }
+
+    /**
+     * Delete project
+     */
+    async deleteProject(id: string) {
+        await connectToDatabase();
+        const project = await Project.findByIdAndDelete(id);
+        if (!project) throw new Error("Project not found");
+        return true;
     }
 }
 

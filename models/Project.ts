@@ -12,6 +12,8 @@ export interface IProject extends Document {
     teamMembers: mongoose.Types.ObjectId[]; // Reference to User
     template?: string; // Workflow template name
     budget?: number;
+    completedStageIds?: string[];
+    stageExtraModules?: Map<string, string[]>;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -37,6 +39,8 @@ const ProjectSchema: Schema = new Schema(
         teamMembers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
         template: { type: String },
         budget: { type: Number },
+        completedStageIds: [{ type: String }],
+        stageExtraModules: { type: Map, of: [String], default: {} },
     },
     { timestamps: true }
 );
