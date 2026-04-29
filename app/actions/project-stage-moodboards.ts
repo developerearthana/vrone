@@ -38,7 +38,7 @@ export async function updateStageMoodBoard(
     projectId: string,
     stageId: string,
     moduleName: string,
-    data: { description?: string; attachments?: string[] }
+    data: { description?: string; attachments?: string[]; status?: string }
 ) {
     await connectToDatabase();
     try {

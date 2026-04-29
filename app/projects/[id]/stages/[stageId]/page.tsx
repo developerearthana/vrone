@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { getProjectById, completeStage, uncompleteStage, addStageExtraModule, removeStageExtraModule } from '@/app/actions/project';
 import { getMasters } from '@/app/actions/masters';
 import { getProjectTemplateByName } from '@/app/actions/project-templates';
-import { getStageSubtasks, createStageSubtask, toggleStageSubtask, deleteStageSubtask } from '@/app/actions/project-stage-tasks';
+import { getStageSubtasks, createStageSubtask, toggleStageSubtask, deleteStageSubtask, addAttachmentsToSubtask } from '@/app/actions/project-stage-tasks';
 import { getStageMoodBoards, toggleStageMoodBoard, updateStageMoodBoard } from '@/app/actions/project-stage-moodboards';
 import { getAllStageBoardComments, addBoardComment, deleteBoardComment } from '@/app/actions/project-board-comments';
 import { toast } from 'sonner';
@@ -44,6 +44,14 @@ const avatarColors = [
 const getAvatarColor = (str: string) =>
     avatarColors[str.charCodeAt(0) % avatarColors.length];
 
+const STATUS_OPTIONS = ['Open', 'Attention', 'Rework', 'Closed'] as const;
+const STATUS_STYLES: Record<string, string> = {
+    'Open': 'bg-blue-50 text-blue-600 border-blue-200',
+    'Attention': 'bg-orange-50 text-orange-600 border-orange-200',
+    'Rework': 'bg-red-50 text-red-600 border-red-200',
+    'Closed': 'bg-green-50 text-green-700 border-green-200',
+};
+
 export default function StageDetailPage({ params }: { params: Promise<{ id: string; stageId: string }> }) {
     const { id, stageId } = use(params);
     const router = useRouter();
@@ -72,12 +80,19 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
     const [mbTaskSaving, setMbTaskSaving] = useState<string | null>(null);
     const mbTaskFileRef = useRef<HTMLInputElement>(null);
     const mbTaskFileTarget = useRef<string | null>(null);
+    const mbExistingTaskFileRef = useRef<HTMLInputElement>(null);
+    const mbExistingTaskFileTarget = useRef<string | null>(null);
 
     // Per-board comments
     const [mbComments, setMbComments] = useState<Record<string, any[]>>({});
     const [mbCommentText, setMbCommentText] = useState<Record<string, string>>({});
     const [mbCommentSaving, setMbCommentSaving] = useState<string | null>(null);
     const [mbShowComments, setMbShowComments] = useState<Record<string, boolean>>({});
+
+    // Status tag per board
+    const [mbStatus, setMbStatus] = useState<Record<string, string>>({});
+    const [mbStatusOpen, setMbStatusOpen] = useState<string | null>(null);
+    const mbStatusRef = useRef<HTMLDivElement | null>(null);
 
     // Extra work boards
     const [extraModules, setExtraModules] = useState<string[]>([]);
@@ -126,14 +141,17 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                 const map: Record<string, any> = {};
                 const descMap: Record<string, string> = {};
                 const filesMap: Record<string, string[]> = {};
+                const statusMap: Record<string, string> = {};
                 for (const m of mbRes.data) {
                     map[m.moduleName] = m;
                     descMap[m.moduleName] = m.description || '';
                     filesMap[m.moduleName] = m.attachments || [];
+                    statusMap[m.moduleName] = m.status || 'Open';
                 }
                 setMoodBoards(map);
                 setMbDesc(descMap);
                 setMbFiles(filesMap);
+                setMbStatus(statusMap);
             }
 
             if (taskRes.success && taskRes.data) {
@@ -257,6 +275,36 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
         if (mbTaskFileRef.current) mbTaskFileRef.current.value = '';
     };
 
+    const handleExistingTaskFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const taskId = mbExistingTaskFileTarget.current;
+        if (!taskId) return;
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+        const fileNames = files.map(f => f.name);
+        setMbTasks(p => {
+            const updated = { ...p };
+            for (const key of Object.keys(updated)) {
+                updated[key] = updated[key].map(t =>
+                    t._id === taskId ? { ...t, attachments: [...(t.attachments || []), ...fileNames] } : t
+                );
+            }
+            return updated;
+        });
+        await addAttachmentsToSubtask(taskId, id, stageId, fileNames);
+        if (mbExistingTaskFileRef.current) mbExistingTaskFileRef.current.value = '';
+    };
+
+    // Status handler
+    const handleStatusChange = async (moduleName: string, status: string) => {
+        setMbStatus(p => ({ ...p, [moduleName]: status }));
+        setMbStatusOpen(null);
+        await updateStageMoodBoard(id, stageId, moduleName, {
+            description: mbDesc[moduleName] || '',
+            attachments: mbFiles[moduleName] || [],
+            status,
+        });
+    };
+
     // Comment handlers
     const handleAddComment = async (moduleName: string) => {
         const text = mbCommentText[moduleName]?.trim();
@@ -280,6 +328,18 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
             toast.error(res.error || "Failed to delete");
         }
     };
+
+    // Close status dropdown on outside click
+    useEffect(() => {
+        if (!mbStatusOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (mbStatusRef.current && !mbStatusRef.current.contains(e.target as Node)) {
+                setMbStatusOpen(null);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [mbStatusOpen]);
 
     // Close add board dropdown on outside click
     useEffect(() => {
@@ -463,6 +523,8 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                             const comments = mbComments[moduleName] || [];
                             const showComments = mbShowComments[moduleName] || false;
                             const commentText = mbCommentText[moduleName] || '';
+                            const status = mbStatus[moduleName] || 'Open';
+                            const isStatusOpen = mbStatusOpen === moduleName;
 
                             return (
                                 <div key={moduleName} className={cn(
@@ -470,7 +532,7 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                                     isCompleted ? "border-green-200 bg-green-50/20" : "border-gray-200"
                                 )}>
                                     {/* Card header */}
-                                    <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                                    <div className="flex items-center justify-between px-4 pt-4 pb-2">
                                         <div className="flex items-center gap-1.5 min-w-0">
                                             <span className={cn(
                                                 "text-sm font-bold truncate",
@@ -512,6 +574,42 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                                                 )}>
                                                 {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                                             </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Status tag */}
+                                    <div className="px-4 pb-3"
+                                        ref={isStatusOpen ? mbStatusRef : undefined}>
+                                        <div className="relative inline-block">
+                                            <button
+                                                onClick={() => setMbStatusOpen(isStatusOpen ? null : moduleName)}
+                                                className={cn(
+                                                    "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded border transition-colors",
+                                                    STATUS_STYLES[status] || STATUS_STYLES['Open']
+                                                )}>
+                                                {status}
+                                                <ChevronDown className="w-3 h-3 opacity-70" />
+                                            </button>
+                                            {isStatusOpen && (
+                                                <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]">
+                                                    {STATUS_OPTIONS.map(opt => (
+                                                        <button
+                                                            key={opt}
+                                                            onClick={() => handleStatusChange(moduleName, opt)}
+                                                            className={cn(
+                                                                "w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover:bg-gray-50",
+                                                                opt === status && "font-bold"
+                                                            )}>
+                                                            <span className={cn(
+                                                                "inline-block px-1.5 py-0.5 rounded border text-[11px]",
+                                                                STATUS_STYLES[opt]
+                                                            )}>
+                                                                {opt}
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -634,12 +732,20 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        <button
-                                                            onClick={() => handleDeleteMbTask(task._id, moduleName)}
-                                                            className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-red-500 transition-all rounded shrink-0"
-                                                            aria-label="Delete">
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                        </button>
+                                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                                            <button
+                                                                onClick={() => { mbExistingTaskFileTarget.current = task._id; mbExistingTaskFileRef.current?.click(); }}
+                                                                className="p-0.5 text-gray-400 hover:text-primary rounded"
+                                                                aria-label="Attach file">
+                                                                <Paperclip className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteMbTask(task._id, moduleName)}
+                                                                className="p-0.5 text-gray-400 hover:text-red-500 rounded"
+                                                                aria-label="Delete">
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -753,9 +859,6 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                                                                                 <span className="text-[11px] font-semibold text-gray-900 truncate block">
                                                                                     {c.userName}
                                                                                 </span>
-                                                                                <span className="text-[10px] text-gray-400 font-mono">
-                                                                                    {c.userEmail}
-                                                                                </span>
                                                                             </div>
                                                                             <span className="text-[10px] text-gray-400 shrink-0">
                                                                                 {formatCommentTime(c.createdAt)}
@@ -833,6 +936,7 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
             {/* Hidden file inputs */}
             <input ref={mbFileRef} type="file" multiple className="hidden" onChange={handleMbFileChange} />
             <input ref={mbTaskFileRef} type="file" multiple className="hidden" onChange={handleTaskFileChange} />
+            <input ref={mbExistingTaskFileRef} type="file" multiple className="hidden" onChange={handleExistingTaskFileChange} />
         </div>
     );
 }

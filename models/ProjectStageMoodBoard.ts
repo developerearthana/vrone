@@ -5,6 +5,7 @@ export interface IProjectStageMoodBoard extends Document {
     stageId: string;
     moduleName: string;
     completed: boolean;
+    status?: string;
     description?: string;
     attachments: string[];
     createdAt: Date;
@@ -17,6 +18,7 @@ const ProjectStageMoodBoardSchema: Schema = new Schema(
         stageId: { type: String, required: true },
         moduleName: { type: String, required: true },
         completed: { type: Boolean, default: false },
+        status: { type: String, default: 'Open' },
         description: { type: String },
         attachments: [{ type: String }],
     },

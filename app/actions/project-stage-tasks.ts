@@ -68,3 +68,19 @@ export async function deleteStageSubtask(id: string, projectId: string, stageId:
         return { success: false, error: error.message };
     }
 }
+
+export async function addAttachmentsToSubtask(id: string, projectId: string, stageId: string, attachments: string[]) {
+    await connectToDatabase();
+    try {
+        const task = await ProjectStageTask.findByIdAndUpdate(
+            id,
+            { $push: { attachments: { $each: attachments } } },
+            { new: true }
+        );
+        if (!task) return { success: false, error: "Task not found" };
+        revalidatePath(`/projects/${projectId}/stages/${stageId}`);
+        return { success: true, data: JSON.parse(JSON.stringify(task)) };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
