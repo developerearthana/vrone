@@ -14,6 +14,15 @@ export const getCampaigns = async () => {
     }
 };
 
+export const getCampaignsSummary = async () => {
+    try {
+        const data = await marketingService.getCampaignsSummary();
+        return { success: true, data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 const CreateCampaignSchema = z.object({
     name: z.string().min(1, "Name is required"),
     type: z.enum(['Social Media', 'Email', 'PPC', 'Content', 'Offline']),

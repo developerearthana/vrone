@@ -1,121 +1,156 @@
-"use client";
+import { BarChart3, TrendingUp, Target, Eye, Megaphone } from 'lucide-react';
+import { StatCard } from '@/components/ui/stat-card';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { getCampaignsSummary } from '@/app/actions/marketing';
 
-import { BarChart3, TrendingUp, Users, Target } from 'lucide-react';
+function formatINR(amount: number) {
+    if (amount >= 10_00_000) return `₹${(amount / 10_00_000).toFixed(2)} L`;
+    if (amount >= 1_000) return `₹${(amount / 1_000).toFixed(1)}K`;
+    return `₹${amount.toLocaleString('en-IN')}`;
+}
 
-export default function MarketingDashboard() {
-    return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Marketing Overview</h1>
+function formatReach(n: number) {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toString();
+}
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-gray-500 font-medium">Total Budget</p>
-                            <h3 className="text-2xl font-bold text-gray-900 mt-1">₹50.0 L</h3>
-                        </div>
-                        <div className="p-2 bg-white rounded-lg">
-                            <BarChart3 className="w-5 h-5 text-blue-600" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        +12% vs last month
-                    </p>
+const STATUS_COLORS: Record<string, string> = {
+    Active: 'bg-green-100 text-green-700',
+    Scheduled: 'bg-blue-100 text-blue-700',
+    Completed: 'bg-muted text-muted-foreground',
+    Paused: 'bg-yellow-100 text-yellow-700',
+};
+
+export default async function MarketingDashboard() {
+    const result = await getCampaignsSummary();
+    const summary = result.success ? result.data! : null;
+
+    if (!summary) {
+        return (
+            <div className="space-y-5">
+                <div className="page-header">
+                    <h1 className="page-title">Marketing Overview</h1>
                 </div>
-
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-gray-500 font-medium">Active Campaigns</p>
-                            <h3 className="text-2xl font-bold text-gray-900 mt-1">8</h3>
-                        </div>
-                        <div className="p-2 bg-white rounded-lg">
-                            <Target className="w-5 h-5 text-purple-600" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-gray-500">3 ending this week</p>
-                </div>
-
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-gray-500 font-medium">Total Reach</p>
-                            <h3 className="text-2xl font-bold text-gray-900 mt-1">1.2 M</h3>
-                        </div>
-                        <div className="p-2 bg-white rounded-lg">
-                            <Users className="w-5 h-5 text-orange-600" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        +5.4% organic growth
-                    </p>
-                </div>
-
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-gray-500 font-medium">Avg. ROI</p>
-                            <h3 className="text-2xl font-bold text-gray-900 mt-1">3.5x</h3>
-                        </div>
-                        <div className="p-2 bg-white rounded-lg">
-                            <TrendingUp className="w-5 h-5 text-green-600" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-gray-500">Across all channels</p>
+                <div className="glass-card p-10 rounded-xl text-center text-muted-foreground">
+                    <p>Failed to load marketing data.</p>
                 </div>
             </div>
+        );
+    }
 
-            {/* Campaign Performance Chart Placeholder */}
-            <div className="grid md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 glass-card p-6 rounded-xl border border-gray-100 h-[300px] flex flex-col">
-                    <h3 className="font-bold text-gray-900 mb-4">Campaign Performance</h3>
-                    <div className="flex-1 bg-background rounded-lg flex items-center justify-center border border-dashed border-gray-200">
-                        <p className="text-sm text-gray-400">Chart Visualization Placeholder</p>
-                    </div>
+    return (
+        <div className="space-y-5">
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">Marketing Overview</h1>
+                    <p className="page-subtitle">Campaigns, budget and performance at a glance.</p>
                 </div>
-                <div className="glass-card p-6 rounded-xl border border-gray-100 h-[300px] flex flex-col">
-                    <h3 className="font-bold text-gray-900 mb-4">Budget Allocation</h3>
-                    <div className="flex-1 space-y-4">
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Digital Ads</span>
-                                <span className="font-medium text-gray-900">45%</span>
-                            </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white0 w-[45%]"></div>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Events</span>
-                                <span className="font-medium text-gray-900">30%</span>
-                            </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white0 w-[30%]"></div>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Content</span>
-                                <span className="font-medium text-gray-900">15%</span>
-                            </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white0 w-[15%]"></div>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Social</span>
-                                <span className="font-medium text-gray-900">10%</span>
-                            </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white0 w-[10%]"></div>
-                            </div>
-                        </div>
+                <Button asChild size="sm">
+                    <Link href="/marketing/campaigns">Manage Campaigns</Link>
+                </Button>
+            </div>
+
+            <div className="stat-grid">
+                <StatCard
+                    label="Total Budget"
+                    value={formatINR(summary.totalBudget)}
+                    sub={summary.totalBudget > 0 ? `${formatINR(summary.totalSpent)} spent` : 'No budget set'}
+                    icon={BarChart3}
+                    iconColor="text-blue-600"
+                />
+                <StatCard
+                    label="Active Campaigns"
+                    value={summary.activeCampaigns.toString()}
+                    sub={summary.endingSoon > 0 ? `${summary.endingSoon} ending this week` : 'None ending soon'}
+                    icon={Target}
+                    iconColor="text-primary"
+                />
+                <StatCard
+                    label="Total Reach"
+                    value={formatReach(summary.totalImpressions)}
+                    sub="Total impressions"
+                    icon={Eye}
+                    iconColor="text-orange-600"
+                />
+                <StatCard
+                    label="Avg. ROI"
+                    value={summary.avgRoi > 0 ? `${summary.avgRoi}x` : '—'}
+                    sub="Across all campaigns"
+                    icon={TrendingUp}
+                    iconColor="text-green-600"
+                />
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-3">
+                <div className="lg:col-span-2 glass-card p-5 rounded-xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base font-semibold text-foreground">Recent Campaigns</h3>
+                        <Button asChild variant="ghost" size="sm" className="text-xs">
+                            <Link href="/marketing/campaigns">View All</Link>
+                        </Button>
                     </div>
+
+                    {summary.recentCampaigns.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                            <Megaphone className="w-8 h-8 mb-2 opacity-30" />
+                            <p className="text-sm">No campaigns yet</p>
+                            <Button asChild size="sm" className="mt-3">
+                                <Link href="/marketing/campaigns">Create first campaign</Link>
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {summary.recentCampaigns.map((c: any) => (
+                                <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                            <Megaphone className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm text-foreground">{c.name}</p>
+                                            <p className="text-xs text-muted-foreground">{c.type}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm text-muted-foreground tabular-nums">{formatINR(c.budget)}</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[c.status] ?? 'bg-muted text-muted-foreground'}`}>
+                                            {c.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="glass-card p-5 rounded-xl">
+                    <h3 className="text-base font-semibold text-foreground mb-4">Budget by Type</h3>
+
+                    {summary.budgetAllocation.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                            <p className="text-sm">No budget data</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {summary.budgetAllocation.map((item: any) => (
+                                <div key={item.type} className="space-y-1">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">{item.type}</span>
+                                        <span className="font-medium text-foreground">{item.pct}%</span>
+                                    </div>
+                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-primary rounded-full transition-all"
+                                            style={{ width: `${item.pct}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{formatINR(item.budget)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
