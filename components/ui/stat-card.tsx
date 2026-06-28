@@ -1,3 +1,5 @@
+"use client"
+
 import { type LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
