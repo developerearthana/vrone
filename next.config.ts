@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '20mb',
-      allowedOrigins: ['earthana-ers.onrender.com', '*.onrender.com', 'localhost:3000', '*.run.app']
+      allowedOrigins: ['earthana-ers.onrender.com', '*.onrender.com', 'localhost:3000', '*.run.app', 'dev.vrone.pro', 'erp.vrone.pro', 'vrone.pro']
     },
     optimizePackageImports: ['lucide-react', 'recharts', '@radix-ui/react-icons'],
   },

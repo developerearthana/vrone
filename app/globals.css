@@ -4,214 +4,208 @@
 
 @layer base {
   :root {
-    /* Theme: Professional High-Contrast White */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    /* Pure Black for maximum clarity */
+    /* ── Vrone ERP — Model A: Warm Earth + Terracotta ──
+       Primary accent: terracotta fired clay
+       Background: warm-tinted near-white
+       Sidebar: dark soil (separate system — see .app-sidebar below)
+    */
 
-    /* Surface Colors */
+    /* Surfaces */
+    --background: 30 18% 97%;
+    --foreground: 16 10% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 16 10% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 16 10% 10%;
 
-    /* Brand Primary - Earth Brown #8B6F47 */
-    --primary: 35 32% 41%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary — terracotta (oklch(57% .13 42) ≈ hsl(14 52% 43%)) */
+    --primary: 14 52% 43%;
+    --primary-foreground: 30 20% 97%;
 
-    /* Brand Secondary */
-    --secondary: 0 0% 97%;
-    --secondary-foreground: 0 0% 10%;
+    /* Secondary — warm light */
+    --secondary: 20 10% 93%;
+    --secondary-foreground: 20 8% 18%;
 
-    /* Muted Elements - Clearly Visible */
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 30%;
+    /* Muted */
+    --muted: 20 10% 92%;
+    --muted-foreground: 20 6% 42%;
 
-    /* Accents */
-    --accent: 35 32% 96%;
-    --accent-foreground: 35 32% 10%;
+    /* Accent */
+    --accent: 20 10% 92%;
+    --accent-foreground: 14 40% 35%;
 
-    --destructive: 0 84.2% 60.2%;
+    /* Semantic */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Sharp Visible Borders */
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --ring: 35 32% 41%;
-
+    /* Structure */
+    --border: 20 10% 86%;
+    --input: 20 10% 86%;
+    --ring: 14 52% 43%;
     --radius: 0.5rem;
-    /* Professional Sharper Corners */
 
-    /* Data Vis - High Contrast */
-    --chart-1: 35 32% 41%;
-    --chart-2: 199 89% 45%;
-    --chart-3: 158 82% 40%;
-    --chart-4: 47 95% 45%;
-    --chart-5: 0 80% 50%;
+    /* Charts — earth palette */
+    --chart-1: 14 52% 43%;
+    --chart-2: 140 38% 43%;
+    --chart-3: 35 65% 50%;
+    --chart-4: 220 42% 54%;
+    --chart-5: 350 42% 52%;
   }
 
   .dark {
-    /* Theme: Professional High-Contrast Dark */
-    --background: 0 0% 5%;
-    /* Deep Black */
-    --foreground: 35 32% 85%;
-    /* Earthy Gold adjusted for text visibility */
-
-    /* Surface Colors */
-    --card: 0 0% 8%;
-    --card-foreground: 35 32% 85%;
-    --popover: 0 0% 8%;
-    --popover-foreground: 35 32% 85%;
-
-    /* Brand Primary - Earth Gold from screenshot */
-    --primary: 35 32% 50%;
-    --primary-foreground: 0 0% 0%;
-
-    /* Brand Secondary */
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 35 32% 80%;
-
-    /* UI Shades - High Visibility */
-    --muted: 0 0% 12%;
-    --muted-foreground: 35 32% 65%;
-
-    --accent: 0 0% 15%;
-    --accent-foreground: 35 32% 90%;
-
-    --destructive: 0 84.2% 60.2%;
+    /* Dark mode — warm night, terracotta stays */
+    --background: 16 8% 7%;
+    --foreground: 30 14% 88%;
+    --card: 16 8% 10%;
+    --card-foreground: 30 14% 88%;
+    --popover: 16 8% 10%;
+    --popover-foreground: 30 14% 88%;
+    --primary: 14 52% 52%;
+    --primary-foreground: 16 8% 7%;
+    --secondary: 16 8% 15%;
+    --secondary-foreground: 30 10% 78%;
+    --muted: 16 8% 15%;
+    --muted-foreground: 30 8% 58%;
+    --accent: 16 8% 18%;
+    --accent-foreground: 30 12% 88%;
+    --destructive: 0 72% 52%;
     --destructive-foreground: 0 0% 100%;
-
-    /* Visible Borders in Dark Mode */
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 35 32% 60%;
+    --border: 16 8% 20%;
+    --input: 16 8% 20%;
+    --ring: 14 52% 52%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    /* Subtle topographic dot texture — barely visible, adds organic warmth */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='%23a75035' opacity='0.18'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 60px 60px;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    @apply text-foreground;
-  }
+  /* Headings — balanced line breaks, refined tracking */
+  h1 { @apply text-foreground; text-wrap: balance; letter-spacing: -0.025em; }
+  h2 { @apply text-foreground; text-wrap: balance; letter-spacing: -0.02em; }
+  h3 { @apply text-foreground; text-wrap: balance; letter-spacing: -0.015em; }
+  h4, h5, h6 { @apply text-foreground; }
 
-  /* Modern Scrollbar */
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
+  /* Tabular numbers for data-dense contexts */
+  .font-tabular, td, th { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
-  ::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.05);
-    border-radius: 999px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,0.25);
-    border-radius: 999px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0,0,0,0.45);
-  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / .4); }
 }
 
 @layer utilities {
-  /* 
-    Glassmorphism Level System 
-    Level 1: Subtle (Cards, Lists)
-    Level 2: Medium (Sidebars, Panels)
-    Level 3: Strong (Modals, Floating Elements)
-  */
+  /* ── Scrollbars ──────────────────────────────────────── */
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / .4); }
 
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.04);
-    border-radius: 999px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,0.20);
-    border-radius: 999px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0,0,0,0.40);
-  }
+  /* Dark scrollbar — inside the soil sidebar */
+  .dark-scrollbar::-webkit-scrollbar { width: 4px; }
+  .dark-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .dark-scrollbar::-webkit-scrollbar-thumb { background: oklch(100% 0 0 / .14); border-radius: 99px; }
+  .dark-scrollbar::-webkit-scrollbar-thumb:hover { background: oklch(100% 0 0 / .25); }
 
-  .glass-1 {
-    @apply bg-card border border-border shadow-sm;
-  }
-
-  .glass-2 {
-    @apply bg-card border border-border shadow-md;
-  }
-
-  .glass-3 {
-    @apply bg-card border border-border shadow-lg;
-  }
-
-  /* Specific Component Utilities - Solid Professional Look */
+  /* ── Surface utilities ───────────────────────────────── */
   .glass-card {
-    @apply bg-card rounded-lg border border-border shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/40;
+    @apply bg-card rounded-lg border border-border shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/30;
+  }
+  .glass-panel { @apply bg-card rounded-lg border border-border; }
+  .glass-nav   { @apply sticky top-0 z-40 bg-card border-b border-border; }
+  .glass-1     { @apply bg-card border border-border shadow-sm; }
+  .glass-2     { @apply bg-card border border-border shadow-md; }
+  .glass-3     { @apply bg-card border border-border shadow-lg; }
+
+  /* ── App sidebar — dark soil system ─────────────────── */
+
+  .app-sidebar {
+    background: oklch(14.2% .024 52);
+    color: oklch(95% .007 68);
   }
 
-  .glass-panel {
-    @apply bg-card rounded-lg border border-border;
+  /* Desktop: right border */
+  .app-sidebar-desktop {
+    border-right: 1px solid oklch(100% 0 0 / .08);
   }
 
-  .glass-nav {
-    @apply sticky top-0 z-40 bg-background border-b border-border shadow-sm transition-all duration-200;
+  /* Brand area divider */
+  .app-sidebar .sidebar-brand-divider {
+    border-bottom-color: oklch(100% 0 0 / .08) !important;
   }
 
-  /* Solid Professional Text Colors */
-  .text-gradient-primary {
-    @apply text-primary font-bold;
+  /* Nav items */
+  .app-sidebar .sidebar-nav-link {
+    color: oklch(67% .012 60);
+  }
+  .app-sidebar .sidebar-nav-link:hover {
+    background: oklch(100% 0 0 / .08) !important;
+    color: oklch(95% .005 65) !important;
+    box-shadow: none !important;
   }
 
-  .text-gradient-gold {
-    @apply text-amber-600 font-bold;
+  /* Active — terracotta */
+  .app-sidebar .sidebar-nav-link-active {
+    background: oklch(57% .13 42) !important;
+    color: oklch(98% .003 42) !important;
+    box-shadow: 0 2px 10px oklch(57% .13 42 / .3) !important;
   }
 
-  /* Animations */
+  /* Icon inherits from link */
+  .app-sidebar .sidebar-nav-link svg { color: inherit !important; opacity: 0.75; }
+  .app-sidebar .sidebar-nav-link:hover svg,
+  .app-sidebar .sidebar-nav-link-active svg { opacity: 1 !important; }
+
+  /* Active pulse dot */
+  .app-sidebar .sidebar-active-pulse { background: oklch(98% .003 42) !important; }
+
+  /* Collapse toggle */
+  .sidebar-collapse-btn {
+    background: oklch(20% .022 52) !important;
+    border-color: oklch(100% 0 0 / .14) !important;
+    color: oklch(67% .012 60) !important;
+  }
+  .sidebar-collapse-btn:hover { color: oklch(95% .006 68) !important; }
+
+  /* Mobile close button */
+  .sidebar-close-btn {
+    background: oklch(100% 0 0 / .10) !important;
+    color: oklch(80% .008 65) !important;
+  }
+  .sidebar-close-btn:hover { color: oklch(95% .006 68) !important; }
+
+  /* ── Text utilities ──────────────────────────────────── */
+  .text-gradient-primary { @apply text-primary font-bold; }
+  .text-gradient-gold    { @apply text-amber-600 font-bold; }
+
+  /* ── Animations ──────────────────────────────────────── */
   .animate-in-fade-slide {
-    animation: fadeInSlideUp 0.5s ease-out forwards;
+    animation: fadeInSlideUp 0.4s ease-out forwards;
   }
-
   @keyframes fadeInSlideUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes bounceSubtle {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-2px);
-    }
+  .animate-float-subtle {
+    animation: floatSubtle 2s ease-in-out infinite;
+  }
+  @keyframes floatSubtle {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-2px); }
   }
 
-  .animate-bounce-subtle {
-    animation: bounceSubtle 2s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    .animate-in-fade-slide,
+    .animate-float-subtle { animation: none; }
   }
 }

@@ -2,9 +2,7 @@
 
 import {
     Bell, Search, User, Menu,
-    PieChart, Users, BarChart3, ShoppingCart, FileText, Settings,
-    LayoutDashboard, List, Kanban, CheckSquare, Package, Tags, ArrowLeftRight, History,
-    UserCheck, Banknote, CalendarDays, Briefcase, KeyRound, LogOut
+    KeyRound, LogOut
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -64,17 +62,14 @@ export function Header({ user }: { user?: any }) {
     const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || !e.target.files[0]) return;
         const file = e.target.files[0];
-
         const formData = new FormData();
         formData.append("file", file);
-
         try {
             const uploadRes = await uploadFile(formData);
             if (uploadRes.error || !uploadRes.url) {
                 toast.error(uploadRes.error || "Upload failed");
                 return;
             }
-
             const updateRes = await updateProfile({ image: uploadRes.url });
             if (updateRes.error) {
                 toast.error(updateRes.error);
@@ -83,7 +78,7 @@ export function Header({ user }: { user?: any }) {
                 await update({ image: uploadRes.url });
                 router.refresh();
             }
-        } catch (error) {
+        } catch {
             toast.error("Something went wrong");
         }
     };
@@ -94,72 +89,76 @@ export function Header({ user }: { user?: any }) {
     };
 
     return (
-        <header className="sticky top-0 z-40 mx-3 md:mx-6 mt-3 mb-4 rounded-xl glass-2 border border-border/40 shadow-sm transition-all h-16 flex items-center justify-between px-3 md:px-6" >
+        <header className="sticky top-0 z-40 bg-card border-b border-border h-14 flex items-center justify-between px-4 md:px-6">
 
-            {/* Left: Breadcrumbs / Title */}
-            <div className="flex items-center gap-4">
+            {/* Left: Mobile nav + Breadcrumbs */}
+            <div className="flex items-center gap-3">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <button aria-label="Toggle Mobile Menu" suppressHydrationWarning className="md:hidden p-2 text-gray-500 hover:bg-white rounded-lg">
+                        <button
+                            aria-label="Toggle Mobile Menu"
+                            suppressHydrationWarning
+                            className="md:hidden p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+                        >
                             <Menu className="w-5 h-5" />
                         </button>
                     </SheetTrigger>
                     <SheetContent side="left" className="w-72 p-0">
-                        <div className="flex flex-col h-full bg-white dark:bg-black">
-                            <div className="p-6 border-b border-border dark:border-white/10">
-                                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                                    <Logo variant="icon" className="h-10 w-10" />
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">Mobile</span>
-                                </h2>
-                            </div>
-                            <div className="flex-1 overflow-y-auto py-4">
-                                <nav className="grid gap-1 px-2">
-                                    {navItems.filter(item => {
-                                        if (userRole === 'super-admin') return true;
-                                        if (userPermissions?.includes('*') || userPermissions?.includes('all')) return true;
-                                        if (userPermissions?.includes(item.permission)) return true;
-                                        return false;
-                                    }).map((item, index) => {
-                                        const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
-                                        return (
-                                            <Link
-                                                key={index}
-                                                href={item.href}
-                                                className={cn(
-                                                    "flex items-center gap-3 rounded-xl px-3 py-3 transition-all",
-                                                    isActive
-                                                        ? "bg-primary text-primary-foreground font-medium"
-                                                        : "text-muted-foreground hover:bg-muted"
-                                                )}
-                                            >
-                                                <item.icon className="h-5 w-5" />
-                                                <span>{item.name}</span>
-                                            </Link>
-                                        )
-                                    })}
-                                </nav>
-                            </div>
+                        <SheetHeader className="p-5 border-b border-border">
+                            <SheetTitle className="flex items-center gap-3 text-base font-bold">
+                                <Logo variant="icon" className="h-8 w-8" />
+                                Vrone ERP
+                            </SheetTitle>
+                        </SheetHeader>
+                        <div className="flex-1 overflow-y-auto py-3">
+                            <nav className="grid gap-1 px-2">
+                                {navItems.filter(item => {
+                                    if (item.permission === 'basic-hrm') return true;
+                                    if (userRole === 'super-admin' || userRole === 'admin') return true;
+                                    if (userPermissions?.includes('*') || userPermissions?.includes('all')) return true;
+                                    if (userPermissions?.includes(item.permission)) return true;
+                                    return false;
+                                }).map((item, index) => {
+                                    const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
+                                    return (
+                                        <Link
+                                            key={index}
+                                            href={item.href}
+                                            className={cn(
+                                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                                                isActive
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                            )}
+                                        >
+                                            <item.icon className="h-4 w-4 shrink-0" />
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    )
+                                })}
+                            </nav>
                         </div>
                     </SheetContent>
                 </Sheet>
 
-                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground overflow-hidden whitespace-nowrap">
-                    {pathSegments.length === 0 && <span className="text-foreground font-bold tracking-tight text-gradient-primary">Dashboard</span>}
+                {/* Breadcrumbs */}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-hidden whitespace-nowrap">
+                    {pathSegments.length === 0 && (
+                        <span className="text-foreground font-semibold">Dashboard</span>
+                    )}
                     {pathSegments.map((segment, index) => {
                         const href = `/${pathSegments.slice(0, index + 1).join('/')}`;
-                        // Check if segment is a MongoDB ID (24 hex chars)
                         const isId = /^[0-9a-fA-F]{24}$/.test(segment);
                         const name = isId
                             ? "Details"
                             : (breadcrumbNameMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1));
-
                         const isLast = index === pathSegments.length - 1;
 
                         return (
-                            <div key={href} className="flex items-center gap-2">
-                                {index > 0 && <span className="text-muted-foreground/30">/</span>}
+                            <div key={href} className="flex items-center gap-1.5">
+                                {index > 0 && <span className="text-muted-foreground/40 select-none">/</span>}
                                 {isLast ? (
-                                    <span className="text-foreground font-bold tracking-tight px-2 py-0.5 rounded-md bg-white/50">{name}</span>
+                                    <span className="text-foreground font-semibold">{name}</span>
                                 ) : (
                                     <Link href={href} className="hover:text-primary transition-colors hidden sm:block">
                                         {name}
@@ -169,92 +168,97 @@ export function Header({ user }: { user?: any }) {
                         );
                     })}
                 </div>
-            </div >
+            </div>
 
             {/* Right: Actions */}
-            < div className="flex items-center gap-3" >
+            <div className="flex items-center gap-2">
+                {/* Search */}
                 <div className="relative hidden md:block group">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
                     <input
                         type="search"
                         aria-label="Universal Search"
                         placeholder="Search... (Ctrl+K)"
                         readOnly
                         onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-                        className="h-10 w-48 lg:w-64 rounded-xl border-none bg-secondary/10 px-10 py-2 text-sm text-foreground shadow-inner transition-all focus:bg-white focus:ring-2 focus:ring-primary/20 focus:w-64 lg:focus:w-80 outline-none placeholder:text-muted-foreground/70 cursor-pointer"
+                        className="h-9 w-48 lg:w-60 rounded-lg border border-border bg-muted/50 px-9 text-sm text-foreground transition-all focus:bg-card focus:ring-2 focus:ring-primary/20 focus:w-60 lg:focus:w-72 outline-none placeholder:text-muted-foreground/60 cursor-pointer"
                     />
                 </div>
 
-                <button aria-label="Notifications" className="relative rounded-xl p-2.5 hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">
+                {/* Notifications */}
+                <button
+                    aria-label="Notifications"
+                    className="relative rounded-lg p-2 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                >
                     <Bell className="h-5 w-5" />
-                    <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" />
                 </button>
 
                 <ModeToggle />
 
-                <div className="h-8 w-[1px] bg-white mx-1"></div>
+                <div className="h-7 w-px bg-border mx-1" />
 
-                <div
-                    className="relative"
-                    onMouseLeave={() => setIsProfileOpen(false)}
-                >
+                {/* Profile */}
+                <div className="relative" onMouseLeave={() => setIsProfileOpen(false)}>
                     <button
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
-                        aria-label="User Profile"
                         onMouseEnter={() => setIsProfileOpen(true)}
-                        className="flex items-center gap-3 rounded-full hover:bg-secondary/10 p-1 pr-3 transition-colors relative z-50"
+                        aria-label="User Profile"
+                        className="flex items-center gap-2.5 rounded-full hover:bg-muted p-1 pr-3 transition-colors relative z-50"
                     >
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-emerald-300 flex items-center justify-center shadow-md shadow-emerald-500/20 text-white font-bold ring-2 ring-white overflow-hidden">
+                        <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground ring-2 ring-border overflow-hidden shrink-0">
                             {currentUser?.image ? (
                                 <img src={currentUser.image} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
-                                <User className="h-5 w-5" />
+                                <User className="h-4 w-4" />
                             )}
                         </div>
                         <div className="hidden md:flex flex-col items-start leading-tight">
-                            <span className="text-sm font-bold text-foreground">{currentUser?.name || 'Guest User'}</span>
-                            <span className="text-[10px] text-muted-foreground font-medium uppercase">{userRole || 'Visitor'}</span>
+                            <span className="text-sm font-semibold text-foreground">{currentUser?.name || 'Guest User'}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{userRole || 'Visitor'}</span>
                         </div>
                     </button>
 
-                    {/* Dropdown Menu */}
+                    {/* Profile dropdown */}
                     {isProfileOpen && (
                         <div
-                            className="absolute right-0 top-full pt-2 w-56 max-w-[calc(100vw-16px)] z-50 animate-in fade-in slide-in-from-top-2"
+                            className="absolute right-0 top-full pt-2 w-56 max-w-[calc(100vw-16px)] z-50"
                             onMouseEnter={() => setIsProfileOpen(true)}
                         >
                             <div className="bg-popover rounded-xl shadow-xl border border-border overflow-hidden p-1">
-                                <div className="px-3 py-2 border-b border-border/50 dark:border-white/10 mb-1">
-                                    <p className="text-sm font-bold text-foreground">{user?.name || 'Guest'}</p>
-                                    <p className="text-xs text-muted-foreground truncate">{user?.email || 'No email'}</p>
+                                <div className="px-3 py-2.5 border-b border-border mb-1">
+                                    <p className="text-sm font-semibold text-foreground">{currentUser?.name || 'Guest'}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{currentUser?.email || 'No email'}</p>
                                 </div>
 
-                                <label className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-primary/5 rounded-lg cursor-pointer transition-colors">
+                                <label className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg cursor-pointer transition-colors">
                                     <input type="file" className="hidden" accept="image/*" onChange={handleProfileImageUpload} />
-                                    <User className="w-4 h-4" />
+                                    <User className="w-4 h-4 shrink-0" />
                                     Upload Photo
                                 </label>
 
-                                <Link href="/change-password" className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-primary/5 rounded-lg transition-colors w-full">
-                                    <KeyRound className="w-4 h-4" />
+                                <Link
+                                    href="/change-password"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors w-full"
+                                >
+                                    <KeyRound className="w-4 h-4 shrink-0" />
                                     Change Password
                                 </Link>
 
-                                <div className="h-[1px] bg-border my-1"></div>
+                                <div className="h-px bg-border my-1" />
 
                                 <button
                                     onClick={handleLogout}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full text-left"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors w-full text-left"
                                 >
-                                    <LogOut className="w-4 h-4" />
+                                    <LogOut className="w-4 h-4 shrink-0" />
                                     Logout
                                 </button>
                             </div>
                         </div>
                     )}
                 </div>
-            </div >
-        </header >
+            </div>
+        </header>
     )
 }
-

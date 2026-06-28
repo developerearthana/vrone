@@ -1,9 +1,0 @@
-﻿__tests__/lib/safe-action.test.ts(150,41): error TS2345: Argument of type '{ title: string; priority: string; dueDate: string; }' is not assignable to parameter of type '{ title: string; priority: "low" | "medium" | "high"; dueDate: string; description?: string | undefined; }'.
-  Types of property 'priority' are incompatible.
-    Type 'string' is not assignable to type '"low" | "medium" | "high"'.
-__tests__/lib/safe-action.test.ts(171,41): error TS2345: Argument of type '{ title: string; }' is not assignable to parameter of type '{ title: string; priority: "low" | "medium" | "high"; dueDate: string; description?: string | undefined; }'.
-  Type '{ title: string; }' is missing the following properties from type '{ title: string; priority: "low" | "medium" | "high"; dueDate: string; description?: string | undefined; }': priority, dueDate
-app/hrm/page.tsx(76,205): error TS2322: Type '{ children: Element[]; key: number; delay: number; className: string; onClick: () => void; }' is not assignable to type 'IntrinsicAttributes & PageWrapperProps'.
-  Property 'onClick' does not exist on type 'IntrinsicAttributes & PageWrapperProps'.
-components/ui/sidebar.tsx(45,58): error TS2304: Cannot find name 'UserCheck'.
-components/ui/sidebar.tsx(46,48): error TS2552: Cannot find name 'CalendarDays'. Did you mean 'Calendar'?

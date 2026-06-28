@@ -1,5 +1,0 @@
-﻿47fd133 Fix super-admin 502: return REDIRECT marker from server action, handle navigation on client side
-aa21362 Fix super-admin login 502: pre-fetch role, no double DB call in authenticate
-79b4666 Fix Render cold-start 502: robust MongoDB connection, health check endpoint, sequential dashboard loading
-82999e6 Fix super-admin client crash: safe stat.change access + lazy load KPI grid + add missing SheetDescription
-1621adb Fix server actions failing behind Render proxy causing client side exception

@@ -7,7 +7,12 @@ import SessionProvider from "@/components/providers/SessionProvider";
 
 import { CommandMenu } from "@/components/ui/command-menu";
 
-const manrope = Manrope({ subsets: ["latin"] });
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-manrope",
+});
 
 export const metadata: Metadata = {
   title: "Earthana",
@@ -29,7 +34,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={manrope.className} suppressHydrationWarning>
+      <body className={`${manrope.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

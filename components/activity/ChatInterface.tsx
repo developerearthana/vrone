@@ -432,7 +432,7 @@ export default function ChatInterface() {
                                                 )}>{name}</h3>
                                                 <div className="flex items-center gap-2">
                                                     {unreadCount > 0 && (
-                                                        <span className="bg-primary text-white text-[10px] min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full font-black shadow-[0_2px_10px_rgba(34,197,94,0.3)] animate-bounce-subtle">
+                                                        <span className="bg-primary text-white text-[10px] min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full font-black shadow-[0_2px_10px_rgba(34,197,94,0.3)] animate-float-subtle">
                                                             {unreadCount}
                                                         </span>
                                                     )}

@@ -20,14 +20,12 @@ import {
     ShieldCheck,
     ChevronLeft,
     ChevronRight,
-    Menu,
-    X,
     UserCheck,
     CalendarDays
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/ui/logo"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useEffect, useRef, useCallback } from "react"
 
 const textStyle = "text-sm font-medium tracking-wide";
 
@@ -67,72 +65,43 @@ export function Sidebar({
     user?: any,
 }) {
     const pathname = usePathname()
-    const [mobileOpen, setMobileOpen] = useState(false)
-
-    // Scroll position preservation — one ref per scroll container (desktop + mobile)
     const desktopScrollRef = useRef<HTMLDivElement>(null)
-    const mobileScrollRef = useRef<HTMLDivElement>(null)
     const desktopScrollPos = useRef(0)
-    const mobileScrollPos = useRef(0)
 
     const saveDesktopScroll = useCallback(() => {
         if (desktopScrollRef.current) desktopScrollPos.current = desktopScrollRef.current.scrollTop
     }, [])
-    const saveMobileScroll = useCallback(() => {
-        if (mobileScrollRef.current) mobileScrollPos.current = mobileScrollRef.current.scrollTop
-    }, [])
 
-    // Restore scroll position after pathname change (re-render)
+    // Restore scroll position after route change
     useEffect(() => {
         if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = desktopScrollPos.current
-        if (mobileScrollRef.current) mobileScrollRef.current.scrollTop = mobileScrollPos.current
     }, [pathname])
 
-    // Close mobile menu on route change
-    useEffect(() => {
-        setMobileOpen(false)
-    }, [pathname])
-
-    // Close mobile menu on ESC
-    useEffect(() => {
-        const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false) }
-        document.addEventListener('keydown', handler)
-        return () => document.removeEventListener('keydown', handler)
-    }, [])
-
-    // Filter items based on role AND permissions
     const filteredNavItems = navItems.filter(item => {
-        if (item.permission === 'basic-hrm') return true; // Always allow punch in and leave
-
+        if (item.permission === 'basic-hrm') return true;
         if (userRole === 'super-admin' || userRole === 'admin') return true;
         if (userPermissions?.includes('*') || userPermissions?.includes('all')) return true;
         if (userPermissions?.includes(item.permission)) return true;
         return false;
     });
 
-    const NavContent = ({ collapsed = false, scrollRef, onScroll }: { collapsed?: boolean, scrollRef?: React.RefObject<HTMLDivElement>, onScroll?: () => void }) => (
+    const NavContent = ({ collapsed = false }: { collapsed?: boolean }) => (
         <>
-            {/* Brand Header */}
+            {/* Brand */}
             <div className={cn(
-                "flex border-b border-white/20 transition-all duration-300",
-                collapsed ? "items-center justify-center gap-3 px-4 py-6" : "flex-col items-start gap-1 px-6 py-4"
+                "sidebar-brand-divider flex border-b transition-all duration-300",
+                collapsed
+                    ? "items-center justify-center px-4 py-6"
+                    : "flex-col items-start px-6 py-4"
             )}>
                 <div className={cn(
                     "flex shrink-0 items-center justify-center transition-all duration-300 overflow-visible",
                     collapsed ? "h-10 w-10" : "h-12 w-full max-w-[220px]"
                 )}>
                     {company?.fullLogo && !collapsed ? (
-                        <img
-                            src={company.fullLogo}
-                            alt="Company Logo"
-                            className="w-full h-full object-contain"
-                        />
+                        <img src={company.fullLogo} alt="Company Logo" className="w-full h-full object-contain" />
                     ) : company?.iconLogo ? (
-                        <img
-                            src={company.iconLogo}
-                            alt="Company Logo"
-                            className="w-full h-full object-contain"
-                        />
+                        <img src={company.iconLogo} alt="Company Logo" className="w-full h-full object-contain" />
                     ) : (
                         <Logo
                             variant={collapsed ? "icon" : "full"}
@@ -140,27 +109,24 @@ export function Sidebar({
                         />
                     )}
                 </div>
-
             </div>
 
             {/* Navigation */}
-            <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar overflow-x-hidden">
+            <div
+                ref={collapsed ? undefined : desktopScrollRef}
+                onScroll={collapsed ? undefined : saveDesktopScroll}
+                className="flex-1 overflow-y-auto py-4 px-3 dark-scrollbar overflow-x-hidden"
+            >
                 <nav className="grid gap-1.5">
                     {filteredNavItems.map((item, index) => {
                         const isSuperAdmin = userRole === 'super-admin' || userRole === 'admin';
-                        const isEmployeeArea = pathname?.startsWith('/dashboards/employee');
-                        
+
                         let itemHref = item.href;
                         let displayName = item.name;
 
-                        // Make sure the Dashboard link points to the right place
                         if (item.href === '/') {
-                            if (isSuperAdmin) {
-                                itemHref = '/dashboards/super-admin';
-                            } else {
-                                itemHref = '/dashboards/employee';
-                                displayName = 'Dashboard';
-                            }
+                            itemHref = isSuperAdmin ? '/dashboards/super-admin' : '/dashboards/employee';
+                            if (!isSuperAdmin) displayName = 'Dashboard';
                         }
 
                         const isActive = pathname === itemHref || (itemHref !== '/' && pathname?.startsWith(itemHref));
@@ -170,99 +136,50 @@ export function Sidebar({
                                 key={index}
                                 href={itemHref}
                                 title={collapsed ? displayName : ""}
-                                onClick={() => setMobileOpen(false)}
                                 className={cn(
-                                    "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ease-in-out relative",
-                                    isActive
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 font-semibold"
-                                        : "text-muted-foreground hover:bg-primary/5 hover:text-primary hover:shadow-sm",
+                                    "sidebar-nav-link group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ease-in-out relative",
+                                    isActive && "sidebar-nav-link-active font-semibold",
                                     collapsed && "justify-center px-1"
                                 )}
                             >
-                                <item.icon className={cn(
-                                    "h-5 w-5 transition-transform group-hover:scale-110 shrink-0",
-                                    isActive ? "text-white" : "text-muted-foreground group-hover:text-primary"
-                                )} />
+                                <item.icon className="h-5 w-5 transition-transform group-hover:scale-110 shrink-0" />
 
-                                <span className={cn(
-                                    textStyle,
-                                    "transition-all duration-300 overflow-hidden whitespace-nowrap",
-                                    collapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100 block"
-                                )}>
-                                    {displayName}
-                                </span>
+                                {!collapsed && (
+                                    <span className={cn(textStyle, "overflow-hidden whitespace-nowrap")}>
+                                        {displayName}
+                                    </span>
+                                )}
 
                                 {isActive && !collapsed && (
-                                    <div className="ml-auto h-2 w-2 rounded-full bg-white animate-pulse" />
+                                    <div className="sidebar-active-pulse ml-auto h-2 w-2 rounded-full animate-pulse" />
                                 )}
                             </Link>
                         )
                     })}
                 </nav>
             </div>
-
         </>
     )
 
     return (
-        <>
-            {/* ─── Mobile Hamburger Button ─── */}
-            <button
-                onClick={() => setMobileOpen(true)}
-                className="fixed top-4 left-4 z-50 md:hidden p-2.5 bg-card border border-border rounded-xl shadow-lg text-foreground hover:bg-muted transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
-                aria-label="Open menu"
-            >
-                <Menu className="w-5 h-5" />
-            </button>
-
-            {/* ─── Mobile Overlay ─── */}
-            {mobileOpen && (
-                <div
-                    className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
-                    onClick={() => setMobileOpen(false)}
-                />
+        <aside
+            className={cn(
+                "fixed inset-y-0 left-0 z-50 hidden md:flex flex-col transition-all duration-300 ease-in-out",
+                isCollapsed ? "w-20" : "w-72"
             )}
+        >
+            <div className="app-sidebar app-sidebar-desktop h-full flex flex-col relative overflow-hidden transition-all duration-300">
+                {/* Collapse toggle */}
+                <button
+                    onClick={toggleCollapse}
+                    className="sidebar-collapse-btn absolute -right-3 top-8 z-50 p-1 border rounded-full shadow-md hidden md:flex transition-colors"
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                    {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                </button>
 
-            {/* ─── Mobile Sidebar Drawer ─── */}
-            <aside
-                className={cn(
-                    "fixed inset-y-0 left-0 z-50 w-[85vw] sm:w-72 md:hidden flex flex-col transform transition-transform duration-300 ease-in-out",
-                    mobileOpen ? "translate-x-0" : "-translate-x-full"
-                )}
-            >
-                <div className="glass-2 m-3 h-[calc(100vh-24px)] flex flex-col rounded-2xl border border-white/40 shadow-xl relative overflow-hidden">
-                    {/* Close button */}
-                    <button
-                        onClick={() => setMobileOpen(false)}
-                        className="absolute right-3 top-3 z-50 p-1.5 bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label="Close menu"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                    <NavContent collapsed={false} scrollRef={mobileScrollRef} onScroll={saveMobileScroll} />
-                </div>
-            </aside>
-
-            {/* ─── Desktop Sidebar ─── */}
-            <aside
-                className={cn(
-                    "fixed inset-y-0 left-0 z-50 hidden md:flex flex-col transition-all duration-300 ease-in-out",
-                    isCollapsed ? "w-20" : "w-72"
-                )}
-            >
-                <div className="glass-2 m-3 h-[calc(100vh-24px)] flex flex-col rounded-2xl border border-white/40 shadow-xl relative overflow-hidden transition-all duration-300">
-                    {/* Collapse Toggle Button */}
-                    <button
-                        onClick={toggleCollapse}
-                        className="absolute -right-3 top-8 z-50 p-1 bg-white border border-gray-200 rounded-full shadow-md text-gray-500 hover:text-primary transition-colors hidden md:flex"
-                        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    >
-                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                    </button>
-
-                    <NavContent collapsed={isCollapsed} scrollRef={desktopScrollRef} onScroll={saveDesktopScroll} />
-                </div>
-            </aside>
-        </>
+                <NavContent collapsed={isCollapsed} />
+            </div>
+        </aside>
     )
 }
