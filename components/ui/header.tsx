@@ -12,6 +12,7 @@ import { navItems } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ModeToggle } from "@/components/ui/theme-toggle";
+import { VThemeToggle } from "@/components/ui/vtheme-toggle";
 import { Logo } from "@/components/ui/logo";
 import { uploadFile } from "@/app/actions/upload";
 import { updateProfile } from "@/app/actions/user-profile";
@@ -103,7 +104,7 @@ export function Header({ user }: { user?: any }) {
                             <Menu className="w-5 h-5" />
                         </button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="w-72 p-0">
+                    <SheetContent side="left" className="w-56 p-0">
                         <SheetHeader className="p-5 border-b border-border">
                             <SheetTitle className="flex items-center gap-3 text-base font-bold">
                                 <Logo variant="icon" className="h-8 w-8" />
@@ -194,6 +195,7 @@ export function Header({ user }: { user?: any }) {
                     <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" />
                 </button>
 
+                <VThemeToggle />
                 <ModeToggle />
 
                 <div className="h-7 w-px bg-border mx-1" />

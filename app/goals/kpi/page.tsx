@@ -183,7 +183,8 @@ export default function WeeklyKPI() {
             </div>
 
             <div className="glass-card rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[540px]">
                     <thead>
                         <tr className="bg-background/50 border-b border-gray-100 text-gray-500">
                             <th className="p-4 font-medium">Week</th>
@@ -240,6 +241,7 @@ export default function WeeklyKPI() {
                         )}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <KPIEntryModal

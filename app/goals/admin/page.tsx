@@ -92,7 +92,8 @@ export default function AdminKPIDashboard() {
 
                             {isExpanded && (
                                 <div className="p-4 bg-white animate-in slide-in-from-top-2">
-                                    <table className="w-full text-sm text-left">
+                                    <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left min-w-[520px]">
                                         <thead className="bg-background text-gray-500 border-b border-gray-100">
                                             <tr>
                                                 <th className="p-3 font-medium">Date/Week</th>
@@ -137,6 +138,7 @@ export default function AdminKPIDashboard() {
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             )}
                         </div>

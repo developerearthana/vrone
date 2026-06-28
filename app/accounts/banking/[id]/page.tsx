@@ -79,7 +79,8 @@ export default function BankAccountDetail({ params }: { params: Promise<{ id: st
                     </div>
 
                     <div className="glass-card rounded-xl overflow-hidden border border-gray-100">
-                        <table className="w-full text-sm text-left">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left min-w-[480px]">
                             <thead className="bg-background text-gray-600 font-medium border-b border-gray-100">
                                 <tr>
                                     <th className="px-6 py-3">Date</th>
@@ -97,6 +98,7 @@ export default function BankAccountDetail({ params }: { params: Promise<{ id: st
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </TabsContent>
 

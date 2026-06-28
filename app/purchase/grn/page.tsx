@@ -34,7 +34,7 @@ export default function GRNPage() {
                         Expecting Arrivals
                     </h3>
                     {pendingGRNs.map((item) => (
-                        <div key={item.id} className="glass-card p-4 rounded-xl border-l-4 border-l-orange-400">
+                        <div key={item.id} className="glass-card p-4 rounded-xl border border-orange-200/60 bg-orange-50/20">
                             <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs font-bold text-blue-600 bg-white px-2 py-0.5 rounded">{item.po}</span>
                                 <span className={`text-xs font-bold ${item.status === 'Delayed' ? 'text-red-600' : 'text-green-600'}`}>{item.expected}</span>
@@ -53,7 +53,8 @@ export default function GRNPage() {
                     <div className="p-4 border-b border-gray-100 bg-background/50 flex justify-between items-center">
                         <h3 className="font-bold text-gray-900">Recent History</h3>
                     </div>
-                    <table className="w-full text-left">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[520px]">
                         <thead className="bg-white border-b border-gray-100 text-xs uppercase text-gray-500">
                             <tr>
                                 <th className="px-6 py-4">GRN #</th>
@@ -84,6 +85,7 @@ export default function GRNPage() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </div>

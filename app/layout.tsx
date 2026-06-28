@@ -23,6 +23,7 @@ import { auth } from '@/auth';
 import { getCompany } from "./actions/organization";
 
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { VThemeProvider } from "@/components/providers/VThemeProvider";
 
 export default async function RootLayout({
   children,
@@ -34,6 +35,14 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* No-flash: set data-vtheme before first paint so CSS picks it up immediately */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('vtheme');if(t==='neo'||t==='travels')document.documentElement.setAttribute('data-vtheme',t);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className={`${manrope.variable} font-sans`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
@@ -41,11 +50,13 @@ export default async function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <CommandMenu />
-          <SessionProvider session={session}>
-            <AppShell user={session?.user} userRole={session?.user?.role} userPermissions={session?.user?.permissions} company={company}>{children}</AppShell>
-          </SessionProvider>
-          <Toaster />
+          <VThemeProvider>
+            <CommandMenu />
+            <SessionProvider session={session}>
+              <AppShell user={session?.user} userRole={session?.user?.role} userPermissions={session?.user?.permissions} company={company}>{children}</AppShell>
+            </SessionProvider>
+            <Toaster />
+          </VThemeProvider>
         </ThemeProvider>
       </body>
     </html>

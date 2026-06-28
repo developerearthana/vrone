@@ -23,7 +23,8 @@ export default function AdjustmentsPage() {
             </div>
 
             <div className="glass-card rounded-xl overflow-hidden">
-                <table className="w-full text-left font-medium">
+                <div className="overflow-x-auto">
+                <table className="w-full text-left font-medium min-w-[520px]">
                     <thead className="bg-background border-b border-gray-100 text-xs uppercase text-gray-500">
                         <tr>
                             <th className="px-6 py-4">Reference</th>
@@ -59,6 +60,7 @@ export default function AdjustmentsPage() {
                         ))}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     );

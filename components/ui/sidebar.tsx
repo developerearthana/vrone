@@ -165,7 +165,7 @@ export function Sidebar({
         <aside
             className={cn(
                 "fixed inset-y-0 left-0 z-50 hidden md:flex flex-col transition-all duration-300 ease-in-out",
-                isCollapsed ? "w-20" : "w-72"
+                isCollapsed ? "w-16" : "w-56"
             )}
         >
             <div className="app-sidebar app-sidebar-desktop h-full flex flex-col relative overflow-hidden transition-all duration-300">

@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendingUp, Users, ShoppingBag, CreditCard, ArrowUpRight, ArrowDownRight, BarChart3, LayoutDashboard, Sparkles, AlertTriangle } from 'lucide-react';
+import { StatCard } from '@/components/ui/stat-card';
 import { useState, useEffect } from 'react';
 import { getSalesDashboardData, getAtRiskDeals, getRevenueForecast } from '@/app/actions/sales';
 import { toast } from 'sonner';
@@ -72,47 +73,22 @@ export default function SalesDashboard() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading Sales Data...</div>;
-
-    const statsConfig = [
-        { label: "Total Revenue", value: `₹${(stats.revenue / 100000).toFixed(2)} Lakhs`, trend: "Closed Won", isUp: true, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Active Deals", value: stats.activeDeals.toString(), trend: "In Progress", isUp: true, icon: ShoppingBag, color: "text-blue-600", bg: "bg-white" },
-        { label: "Pipeline Value", value: `₹${(stats.pipelineValue / 100000).toFixed(2)} L`, trend: "Potential", isUp: true, icon: CreditCard, color: "text-purple-600", bg: "bg-white" },
-        { label: "New Leads", value: stats.newLeads.toString(), trend: "Top of Funnel", isUp: true, icon: Users, color: "text-orange-600", bg: "bg-white" },
-    ];
+    if (loading) return <div className="page-loading">Loading Sales…</div>;
 
     return (
         <PageWrapper className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary">Sales Overview</h1>
-                    <p className="text-muted-foreground mt-1">Real-time pipeline performance and revenue tracking.</p>
-                </div>
-                <div className="flex gap-2">
-                    <button className="px-3 py-1.5 bg-card border border-border rounded-lg text-sm text-foreground hover:text-primary transition-colors">
-                        Download Report
-                    </button>
+                    <h1 className="page-title">Sales Overview</h1>
+                    <p className="page-subtitle">Real-time pipeline performance and revenue tracking.</p>
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {statsConfig.map((stat, idx) => (
-                    <CardWrapper key={idx} delay={idx * 0.1} className="glass-card p-6 rounded-2xl border-border bg-card">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                                <h3 className="text-2xl font-bold text-foreground mt-2">{stat.value}</h3>
-                                <div className={cn("inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-bold", stat.bg, stat.color)}>
-                                    <ArrowUpRight className="w-3 h-3" /> {stat.trend}
-                                </div>
-                            </div>
-                            <div className={cn("p-3 rounded-xl", stat.bg, stat.color)}>
-                                <stat.icon className="w-5 h-5" />
-                            </div>
-                        </div>
-                    </CardWrapper>
-                ))}
+            <div className="stat-grid">
+                <StatCard label="Total Revenue" value={`₹${(stats.revenue / 100000).toFixed(2)} L`} sub="Closed won" icon={TrendingUp} iconColor="text-emerald-600" trend="up" />
+                <StatCard label="Active Deals" value={stats.activeDeals} sub="In progress" icon={ShoppingBag} iconColor="text-blue-600" />
+                <StatCard label="Pipeline Value" value={`₹${(stats.pipelineValue / 100000).toFixed(2)} L`} sub="Potential" icon={CreditCard} iconColor="text-primary" />
+                <StatCard label="New Leads" value={stats.newLeads} sub="Top of funnel" icon={Users} iconColor="text-orange-600" />
             </div>
 
             {/* Main Content */}
@@ -207,22 +183,22 @@ export default function SalesDashboard() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center p-4 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-100">
-                            <p className="text-xs font-medium text-gray-500 mb-1">Next 30 Days</p>
-                            <p className="text-xl font-black text-emerald-600">
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center p-3.5 bg-muted/50 rounded-xl border border-border">
+                            <p className="text-xs text-muted-foreground mb-1">Next 30 Days</p>
+                            <p className="text-xl font-bold text-foreground tabular-nums">
                                 ₹{(forecast.next30 / 100000).toFixed(1)}L
                             </p>
                         </div>
-                        <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-border">
-                            <p className="text-xs font-medium text-gray-500 mb-1">Next 60 Days</p>
-                            <p className="text-xl font-black text-blue-600">
+                        <div className="text-center p-3.5 bg-muted/50 rounded-xl border border-border">
+                            <p className="text-xs text-muted-foreground mb-1">Next 60 Days</p>
+                            <p className="text-xl font-bold text-foreground tabular-nums">
                                 ₹{(forecast.next60 / 100000).toFixed(1)}L
                             </p>
                         </div>
-                        <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-border">
-                            <p className="text-xs font-medium text-gray-500 mb-1">Next 90 Days</p>
-                            <p className="text-xl font-black text-purple-600">
+                        <div className="text-center p-3.5 bg-muted/50 rounded-xl border border-border">
+                            <p className="text-xs text-muted-foreground mb-1">Next 90 Days</p>
+                            <p className="text-xl font-bold text-foreground tabular-nums">
                                 ₹{(forecast.next90 / 100000).toFixed(1)}L
                             </p>
                         </div>

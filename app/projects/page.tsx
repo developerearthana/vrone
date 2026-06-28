@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, Clock, AlertTriangle, ArrowRight, Plus, Loader2, Search, Filter, Download, Printer, Calendar, Users, Layers, Pencil, Trash2, X } from 'lucide-react';
+import { StatCard } from '@/components/ui/stat-card';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { PageWrapper } from '@/components/ui/page-wrapper';
@@ -146,19 +147,13 @@ export default function ProjectsDashboard() {
         );
     }
 
-    const statCards = [
-        { label: "Total Projects", value: stats.total, sub: "Active", icon: Briefcase, color: "bg-white", textColor: "text-blue-600", border: "border-border" },
-        { label: "Completed", value: stats.completed, sub: "This Year", icon: CheckCircle2, color: "bg-white", textColor: "text-green-600", border: "border-border" },
-        { label: "In Progress", value: stats.inProgress, sub: "On Track", icon: Clock, color: "bg-white", textColor: "text-purple-600", border: "border-border" },
-        { label: "At Risk", value: stats.atRisk, sub: "Needs Attention", icon: AlertTriangle, color: "bg-red-50", textColor: "text-red-600", border: "border-red-100" },
-    ];
 
     return (
         <PageWrapper className="space-y-6 max-w-7xl mx-auto p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-primary tracking-tight">Projects Overview</h1>
-                    <p className="text-muted-foreground mt-1">Manage and track ongoing project progress.</p>
+                    <h1 className="page-title">Projects Overview</h1>
+                    <p className="page-subtitle">Manage and track ongoing project progress.</p>
                 </div>
                 <Button className="shadow-lg shadow-primary/20" onClick={() => setShowNewProjectModal(true)}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -166,34 +161,11 @@ export default function ProjectsDashboard() {
                 </Button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {statCards.map((stat, idx) => (
-                    <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className={cn("glass-card p-5 rounded-xl border flex flex-col justify-between h-32 hover:shadow-md transition-all", stat.border)}
-                    >
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
-                            </div>
-                            <div className={cn("p-2 rounded-lg", stat.color)}>
-                                <stat.icon className={cn("w-5 h-5", stat.textColor)} />
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                            {stat.textColor === "text-red-600" ?
-                                <AlertTriangle className="w-3 h-3 text-red-400" /> :
-                                <ArrowRight className="w-3 h-3 text-gray-400" />
-                            }
-                            {stat.sub}
-                        </p>
-                    </motion.div>
-                ))}
+            <div className="stat-grid">
+                <StatCard label="Total Projects" value={stats.total} sub="Active" icon={Briefcase} iconColor="text-blue-600" />
+                <StatCard label="Completed" value={stats.completed} sub="This year" icon={CheckCircle2} iconColor="text-green-600" trend="up" />
+                <StatCard label="In Progress" value={stats.inProgress} sub="On track" icon={Clock} iconColor="text-purple-600" />
+                <StatCard label="At Risk" value={stats.atRisk} sub="Needs attention" icon={AlertTriangle} iconColor="text-red-600" trend="down" />
             </div>
 
             {/* Filters */}
@@ -300,10 +272,10 @@ export default function ProjectsDashboard() {
                                                     <Button variant="ghost" size="sm" asChild className="text-blue-600 hover:text-blue-700 hover:bg-white h-7 px-2 text-xs">
                                                         <Link href={`/projects/${project.id}`}>View</Link>
                                                     </Button>
-                                                    <button onClick={() => openEdit(project)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-white rounded-lg transition-colors" aria-label="Edit">
+                                                    <button onClick={() => openEdit(project)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors" aria-label="Edit">
                                                         <Pencil className="w-3.5 h-3.5" />
                                                     </button>
-                                                    <button onClick={() => setDeleteTarget(project)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" aria-label="Delete">
+                                                    <button onClick={() => setDeleteTarget(project)} className="p-1.5 text-muted-foreground hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors" aria-label="Delete">
                                                         <Trash2 className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>

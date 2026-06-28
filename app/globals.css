@@ -10,6 +10,9 @@
        Sidebar: dark soil (separate system — see .app-sidebar below)
     */
 
+    /* Neomirai alternate theme primary — available globally for UI indicators */
+    --neo-primary: hsl(190, 90%, 50%);
+
     /* Surfaces */
     --background: 30 18% 97%;
     --foreground: 16 10% 10%;
@@ -118,7 +121,7 @@
 
   /* ── Surface utilities ───────────────────────────────── */
   .glass-card {
-    @apply bg-card rounded-lg border border-border shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/30;
+    @apply bg-card rounded-lg border border-border shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/30 hover:-translate-y-px;
   }
   .glass-panel { @apply bg-card rounded-lg border border-border; }
   .glass-nav   { @apply sticky top-0 z-40 bg-card border-b border-border; }
@@ -126,38 +129,38 @@
   .glass-2     { @apply bg-card border border-border shadow-md; }
   .glass-3     { @apply bg-card border border-border shadow-lg; }
 
-  /* ── App sidebar — dark soil system ─────────────────── */
+  /* ── App sidebar — matches content background ─────────── */
 
   .app-sidebar {
-    background: oklch(14.2% .024 52);
-    color: oklch(95% .007 68);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 
-  /* Desktop: right border */
+  /* Desktop: subtle right border — same depth as card borders */
   .app-sidebar-desktop {
-    border-right: 1px solid oklch(100% 0 0 / .08);
+    border-right: 1px solid hsl(var(--border));
   }
 
   /* Brand area divider */
   .app-sidebar .sidebar-brand-divider {
-    border-bottom-color: oklch(100% 0 0 / .08) !important;
+    border-bottom-color: hsl(var(--border)) !important;
   }
 
   /* Nav items */
   .app-sidebar .sidebar-nav-link {
-    color: oklch(67% .012 60);
+    color: hsl(var(--muted-foreground));
   }
   .app-sidebar .sidebar-nav-link:hover {
-    background: oklch(100% 0 0 / .08) !important;
-    color: oklch(95% .005 65) !important;
+    background: hsl(var(--muted)) !important;
+    color: hsl(var(--foreground)) !important;
     box-shadow: none !important;
   }
 
-  /* Active — terracotta */
+  /* Active — terracotta pill */
   .app-sidebar .sidebar-nav-link-active {
     background: oklch(57% .13 42) !important;
     color: oklch(98% .003 42) !important;
-    box-shadow: 0 2px 10px oklch(57% .13 42 / .3) !important;
+    box-shadow: 0 2px 12px oklch(57% .13 42 / .22) !important;
   }
 
   /* Icon inherits from link */
@@ -166,22 +169,22 @@
   .app-sidebar .sidebar-nav-link-active svg { opacity: 1 !important; }
 
   /* Active pulse dot */
-  .app-sidebar .sidebar-active-pulse { background: oklch(98% .003 42) !important; }
+  .app-sidebar .sidebar-active-pulse { background: oklch(57% .13 42) !important; }
 
   /* Collapse toggle */
   .sidebar-collapse-btn {
-    background: oklch(20% .022 52) !important;
-    border-color: oklch(100% 0 0 / .14) !important;
-    color: oklch(67% .012 60) !important;
+    background: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--muted-foreground)) !important;
   }
-  .sidebar-collapse-btn:hover { color: oklch(95% .006 68) !important; }
+  .sidebar-collapse-btn:hover { color: hsl(var(--foreground)) !important; }
 
   /* Mobile close button */
   .sidebar-close-btn {
     background: oklch(100% 0 0 / .10) !important;
     color: oklch(80% .008 65) !important;
   }
-  .sidebar-close-btn:hover { color: oklch(95% .006 68) !important; }
+  .sidebar-close-btn:hover { color: oklch(95% .007 68) !important; }
 
   /* ── Text utilities ──────────────────────────────────── */
   .text-gradient-primary { @apply text-primary font-bold; }
@@ -208,4 +211,704 @@
     .animate-in-fade-slide,
     .animate-float-subtle { animation: none; }
   }
+}
+
+/* ════════════════════════════════════════════════════════════
+   NEOMIRAI ALTERNATE THEME — html[data-vtheme="neo"]
+   Neo-future dark: electric teal primary, deep violet secondary,
+   deep navy base. Terracotta theme is untouched above.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Smooth crossfade between themes (not applied during next-themes toggle) */
+html[data-vtheme="neo"],
+html[data-vtheme="neo"] *,
+html[data-vtheme="travels"],
+html[data-vtheme="travels"] *,
+html:not([data-vtheme]) {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 280ms;
+  transition-timing-function: ease;
+}
+/* Kill transitions on layout/transform props to stay performance-safe */
+html[data-vtheme="neo"] *,
+html[data-vtheme="travels"] *,
+html:not([data-vtheme]) * {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-vtheme="neo"] *, html:not([data-vtheme]) * { transition: none !important; }
+}
+
+/* ── Named color tokens for Neomirai (all literals live here) ── */
+html[data-vtheme="neo"] {
+  color-scheme: dark;
+
+  /* Teal family */
+  --neo-teal:              hsl(190 90% 50%);
+  --neo-teal-hi:           hsl(190 90% 60%);
+  --neo-teal-bright:       hsl(190 90% 55%);
+  --neo-teal-bright-glow:  hsl(190 90% 55% / .70);
+  --neo-teal-a05:          hsl(190 90% 50% / .055);
+  --neo-teal-a07:          hsl(190 90% 50% / .07);
+  --neo-teal-a08:          hsl(190 90% 50% / .08);
+  --neo-teal-a10:          hsl(190 90% 50% / .10);
+  --neo-teal-a12:          hsl(190 90% 50% / .12);
+  --neo-teal-a14:          hsl(190 90% 50% / .14);
+  --neo-teal-a18:          hsl(190 90% 50% / .18);
+  --neo-teal-a20:          hsl(190 90% 50% / .20);
+  --neo-teal-a22:          hsl(190 90% 50% / .22);
+  --neo-teal-a32:          hsl(190 90% 50% / .32);
+  --neo-teal-aurora:       hsl(190 90% 50% / .025);
+  --neo-violet-aurora:     hsl(270 70% 60% / .07);
+  --neo-dot-grid:          hsl(210 25% 92% / .022);
+
+  /* Surface & text */
+  --neo-sidebar:           oklch(7% .02 252);
+  --neo-sidebar-btn:       oklch(11% .02 252);
+  --neo-ink:               oklch(88% .008 252);
+  --neo-ink-2:             oklch(50% .012 252);
+
+  /* Structural */
+  --neo-scrollbar:         hsl(225 22% 28%);
+  --neo-scrollbar-hi:      hsl(225 22% 36%);
+  --neo-card-border:       hsl(225 22% 20%);
+  --neo-deep-shadow-40:    hsl(225 35% 3% / .40);
+  --neo-deep-shadow-50:    hsl(225 35% 3% / .50);
+
+  /* ── shadcn token overrides ── */
+  --background:             225 35%  6%;
+  --foreground:             210 25% 92%;
+  --card:                   225 30% 10%;
+  --card-foreground:        210 25% 92%;
+  --popover:                225 28% 12%;
+  --popover-foreground:     210 25% 92%;
+  --primary:                190 90% 50%;
+  --primary-foreground:     225 35%  8%;
+  --secondary:              260 20% 16%;
+  --secondary-foreground:   210 15% 78%;
+  --muted:                  225 22% 13%;
+  --muted-foreground:       210 12% 52%;
+  --accent:                 260 25% 18%;
+  --accent-foreground:      190 80% 60%;
+  --destructive:            0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border:                 225 22% 18%;
+  --input:                  225 22% 18%;
+  --ring:                   190 90% 50%;
+  --radius:                 0.5rem;
+  --chart-1:                190 90% 50%;
+  --chart-2:                260 65% 65%;
+  --chart-3:                165 80% 50%;
+  --chart-4:                 35 90% 55%;
+  --chart-5:                350 80% 60%;
+}
+
+/* ── Body background — aurora blobs + dot grid ── */
+html[data-vtheme="neo"] body {
+  background-image:
+    radial-gradient(ellipse 900px 700px at -5% -5%,  var(--neo-teal-a05) 0%, transparent 60%),
+    radial-gradient(ellipse 800px 800px at 105% 105%, var(--neo-violet-aurora) 0%, transparent 60%),
+    radial-gradient(ellipse 500px 400px at 80% 20%,   var(--neo-teal-aurora) 0%, transparent 55%),
+    radial-gradient(circle, var(--neo-dot-grid) 1px, transparent 1px);
+  background-size: auto, auto, auto, 36px 36px;
+  background-attachment: fixed, fixed, fixed, local;
+}
+
+/* ── Scrollbars ── */
+html[data-vtheme="neo"] ::-webkit-scrollbar-thumb {
+  background: var(--neo-scrollbar);
+}
+html[data-vtheme="neo"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--neo-scrollbar-hi);
+}
+html[data-vtheme="neo"] .dark-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--neo-teal-a18);
+}
+html[data-vtheme="neo"] .dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--neo-teal-a32);
+}
+
+/* ── Sidebar — deep navy with teal accent system ── */
+html[data-vtheme="neo"] .app-sidebar {
+  background: var(--neo-sidebar);
+  color:      var(--neo-ink);
+}
+html[data-vtheme="neo"] .app-sidebar-desktop {
+  border-right: 1px solid var(--neo-teal-a10);
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-brand-divider {
+  border-bottom-color: var(--neo-teal-a10) !important;
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-nav-link {
+  color: var(--neo-ink-2);
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-nav-link:hover {
+  background: var(--neo-teal-a07) !important;
+  color:      var(--neo-ink) !important;
+  box-shadow: none !important;
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-nav-link-active {
+  background: var(--neo-teal-a14) !important;
+  color:      var(--neo-teal-hi) !important;
+  border: 1px solid var(--neo-teal-a22) !important;
+  box-shadow: 0 0 18px var(--neo-teal-a12) !important;
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-nav-link svg {
+  color: inherit !important;
+  opacity: 0.65;
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-nav-link:hover svg,
+html[data-vtheme="neo"] .app-sidebar .sidebar-nav-link-active svg {
+  opacity: 1 !important;
+}
+html[data-vtheme="neo"] .app-sidebar .sidebar-active-pulse {
+  background: var(--neo-teal-bright) !important;
+  box-shadow: 0 0 6px var(--neo-teal-bright-glow) !important;
+}
+html[data-vtheme="neo"] .sidebar-collapse-btn {
+  background:   var(--neo-sidebar-btn) !important;
+  border-color: var(--neo-teal-a18) !important;
+  color:        var(--neo-ink-2) !important;
+}
+html[data-vtheme="neo"] .sidebar-collapse-btn:hover {
+  color: var(--neo-ink) !important;
+}
+
+/* ── Glass card upgrade in neo ── */
+html[data-vtheme="neo"] .glass-card {
+  border-color: var(--neo-card-border);
+  box-shadow: 0 1px 3px var(--neo-deep-shadow-40);
+}
+html[data-vtheme="neo"] .glass-card:hover {
+  border-color: var(--neo-teal-a20);
+  box-shadow: 0 4px 20px var(--neo-deep-shadow-50), 0 0 0 1px var(--neo-teal-a08);
+}
+
+/* ── Abstract background canvas (DOM element added by AppShell) ── */
+.neo-canvas {
+  display: none;
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+html[data-vtheme="neo"] .neo-canvas {
+  display: block;
+}
+.neo-canvas .neo-svg-tr {
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 560px;
+  height: 560px;
+  opacity: 0.11;
+}
+.neo-canvas .neo-svg-bl {
+  position: absolute;
+  bottom: -60px;
+  left: 200px;
+  width: 480px;
+  height: 480px;
+  opacity: 0.08;
+}
+
+/* Ensure main content sits above the canvas */
+html[data-vtheme="neo"] .neo-above-canvas {
+  position: relative;
+  z-index: 1;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TRAVELS ALTERNATE THEME — html[data-vtheme="travels"]
+   Cobalt Atlas: passport-blue primary, midnight-navy sidebar,
+   parchment-warm background, cartographic grid.
+   ════════════════════════════════════════════════════════════ */
+
+html[data-vtheme="travels"] {
+  color-scheme: light;
+
+  /* Cobalt family */
+  --tvl-cobalt:              hsl(222 62% 44%);
+  --tvl-cobalt-hi:           hsl(222 62% 58%);
+  --tvl-cobalt-bright:       hsl(222 62% 52%);
+  --tvl-cobalt-bright-glow:  hsl(222 62% 52% / .70);
+  --tvl-cobalt-a05:          hsl(222 62% 44% / .055);
+  --tvl-cobalt-a08:          hsl(222 62% 44% / .08);
+  --tvl-cobalt-a10:          hsl(222 62% 44% / .10);
+  --tvl-cobalt-a12:          hsl(222 62% 44% / .12);
+  --tvl-cobalt-a14:          hsl(222 62% 44% / .14);
+  --tvl-cobalt-a20:          hsl(222 62% 44% / .20);
+  --tvl-cobalt-a22:          hsl(222 62% 44% / .22);
+  --tvl-cobalt-a32:          hsl(222 62% 44% / .32);
+
+  /* Sidebar & structure */
+  --tvl-sidebar:             oklch(11% .04 250);
+  --tvl-sidebar-btn:         oklch(15.5% .038 250);
+  --tvl-ink:                 oklch(93% .006 250);
+  --tvl-ink-2:               oklch(55% .016 250);
+  --tvl-scrollbar:           hsl(222 22% 30%);
+  --tvl-scrollbar-hi:        hsl(222 22% 40%);
+
+  /* ── shadcn token overrides ── */
+  --background:              43 16% 97%;
+  --foreground:              222 15% 12%;
+  --card:                    0 0% 100%;
+  --card-foreground:         222 15% 12%;
+  --popover:                 0 0% 100%;
+  --popover-foreground:      222 15% 12%;
+  --primary:                 222 62% 44%;
+  --primary-foreground:      0 0% 98%;
+  --secondary:               220 14% 94%;
+  --secondary-foreground:    222 20% 22%;
+  --muted:                   220 12% 93%;
+  --muted-foreground:        220 12% 42%;
+  --accent:                  220 14% 93%;
+  --accent-foreground:       222 55% 38%;
+  --destructive:             0 84% 60%;
+  --destructive-foreground:  0 0% 100%;
+  --border:                  220 14% 88%;
+  --input:                   220 14% 88%;
+  --ring:                    222 62% 44%;
+  --radius:                  0.5rem;
+  --chart-1:                 222 62% 44%;
+  --chart-2:                 170 55% 40%;
+  --chart-3:                 38  75% 50%;
+  --chart-4:                 280 45% 55%;
+  --chart-5:                 0   65% 55%;
+}
+
+/* ── Body background — cartographic grid + atmospheric corner gradients ── */
+html[data-vtheme="travels"] body {
+  background-image:
+    radial-gradient(ellipse 700px 500px at -8% -8%,   hsl(222 62% 44% / .05) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 600px at 108% 108%, hsl(200 80% 50% / .04) 0%, transparent 60%),
+    linear-gradient(hsl(222 62% 44% / .032) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(222 62% 44% / .032) 1px, transparent 1px);
+  background-size: auto, auto, 44px 44px, 44px 44px;
+  background-attachment: fixed, fixed, local, local;
+}
+
+/* ── Scrollbars ── */
+html[data-vtheme="travels"] ::-webkit-scrollbar-thumb {
+  background: hsl(220 14% 82%);
+}
+html[data-vtheme="travels"] ::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 14% 70%);
+}
+html[data-vtheme="travels"] .dark-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--tvl-cobalt-a20);
+}
+html[data-vtheme="travels"] .dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--tvl-cobalt-a32);
+}
+
+/* ── Sidebar — midnight navy with cobalt accent ── */
+html[data-vtheme="travels"] .app-sidebar {
+  background: var(--tvl-sidebar);
+  color:      var(--tvl-ink);
+}
+html[data-vtheme="travels"] .app-sidebar-desktop {
+  border-right: 1px solid var(--tvl-cobalt-a10);
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-brand-divider {
+  border-bottom-color: var(--tvl-cobalt-a10) !important;
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-nav-link {
+  color: var(--tvl-ink-2);
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-nav-link:hover {
+  background: var(--tvl-cobalt-a08) !important;
+  color:      var(--tvl-ink) !important;
+  box-shadow: none !important;
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-nav-link-active {
+  background: var(--tvl-cobalt) !important;
+  color:      oklch(98% .003 250) !important;
+  box-shadow: 0 2px 12px var(--tvl-cobalt-a32) !important;
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-nav-link svg {
+  color: inherit !important;
+  opacity: 0.70;
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-nav-link:hover svg,
+html[data-vtheme="travels"] .app-sidebar .sidebar-nav-link-active svg {
+  opacity: 1 !important;
+}
+html[data-vtheme="travels"] .app-sidebar .sidebar-active-pulse {
+  background: oklch(96% .006 250) !important;
+}
+html[data-vtheme="travels"] .sidebar-collapse-btn {
+  background:   var(--tvl-sidebar-btn) !important;
+  border-color: var(--tvl-cobalt-a14) !important;
+  color:        var(--tvl-ink-2) !important;
+}
+html[data-vtheme="travels"] .sidebar-collapse-btn:hover {
+  color: var(--tvl-ink) !important;
+}
+
+/* ── Glass card upgrade in travels ── */
+html[data-vtheme="travels"] .glass-card {
+  border-color: hsl(220 14% 90%);
+  box-shadow: 0 1px 3px hsl(222 20% 50% / .08);
+}
+html[data-vtheme="travels"] .glass-card:hover {
+  border-color: var(--tvl-cobalt-a22);
+  box-shadow: 0 4px 20px hsl(222 40% 10% / .12), 0 0 0 1px var(--tvl-cobalt-a10);
+}
+
+/* ════════════════════════════════════════════════════════════
+   BUTTON SYSTEM — ripple, spinner, enhanced states
+   ════════════════════════════════════════════════════════════ */
+
+/* Click ripple — JS injects .btn-ripple span at cursor position */
+.btn-ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  opacity: 0.20;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0);
+  animation: btn-ripple-out 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes btn-ripple-out {
+  to { transform: translate(-50%, -50%) scale(100); opacity: 0; }
+}
+
+/* Loading spinner — pure CSS, inherits button color */
+@keyframes btn-spin { to { rotate: 360deg; } }
+.btn-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+.btn-spinner::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: btn-spin 0.55s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ripple { animation: none; opacity: 0; }
+  .btn-spinner::before { animation: none; opacity: 0.55; border-top-color: currentColor; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   PAGE ROUTE PROGRESS BAR — top-edge 2px sweep on navigation
+   ════════════════════════════════════════════════════════════ */
+
+.page-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 9999;
+  background: hsl(var(--primary));
+  pointer-events: none;
+  transform-origin: left center;
+  transform: scaleX(0);
+  opacity: 0;
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.55), 0 0 4px hsl(var(--primary) / 0.3);
+}
+.page-progress.active {
+  animation: page-progress-sweep 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes page-progress-sweep {
+  0%   { transform: scaleX(0);   opacity: 1; }
+  50%  { transform: scaleX(1);   opacity: 1; }
+  75%  { transform: scaleX(1);   opacity: 0.7; }
+  100% { transform: scaleX(1);   opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-progress { display: none; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   TERRA BACKGROUND CANVAS — geological polygon fragments
+   ════════════════════════════════════════════════════════════ */
+
+.terra-canvas {
+  display: none;
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+html:not([data-vtheme]) .terra-canvas {
+  display: block;
+}
+.terra-canvas .terra-svg-tr {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 540px;
+  height: 540px;
+  opacity: 1;
+}
+.terra-canvas .terra-svg-bl {
+  position: absolute;
+  bottom: -60px;
+  left: 200px;
+  width: 460px;
+  height: 460px;
+  opacity: 1;
+}
+.terra-canvas .terra-svg-c {
+  position: absolute;
+  top: 38%;
+  left: 52%;
+  width: 320px;
+  height: 320px;
+  opacity: 0.55;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TRAVELS BACKGROUND CANVAS — compass arcs + cartographic
+   ════════════════════════════════════════════════════════════ */
+
+.travels-canvas {
+  display: none;
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+html[data-vtheme="travels"] .travels-canvas {
+  display: block;
+}
+.travels-canvas .travels-svg-tr {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 500px;
+  height: 500px;
+}
+.travels-canvas .travels-svg-bl {
+  position: absolute;
+  bottom: -20px;
+  left: 200px;
+  width: 440px;
+  height: 440px;
+}
+
+/* Content sits above all canvases */
+.above-canvas {
+  position: relative;
+  z-index: 1;
+}
+
+/* ════════════════════════════════════════════════════════════
+   MOTION SYSTEM — micro-interactions + state transitions
+   ════════════════════════════════════════════════════════════ */
+
+/* Sidebar nav — tiny forward nudge on active */
+.app-sidebar .sidebar-nav-link {
+  transition: background 180ms ease, color 180ms ease, transform 150ms ease, box-shadow 180ms ease;
+}
+.app-sidebar .sidebar-nav-link:hover {
+  transform: translateX(2px);
+}
+.app-sidebar .sidebar-nav-link-active {
+  transform: translateX(2px);
+}
+
+/* Header action icon buttons — scale on hover */
+header button:not([data-profile-trigger]) {
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease, opacity 150ms ease;
+}
+header button:not([data-profile-trigger]):hover {
+  transform: scale(1.06);
+}
+
+/* Input focus bloom — smooth border + glow transition */
+input[type]:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+input[type]:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+textarea:focus-visible {
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.12);
+}
+
+/* Theme-adaptive text selection */
+::selection {
+  background: hsl(var(--primary) / 0.18);
+  color: hsl(var(--foreground));
+}
+
+/* Reduced motion — kill all motion in one place */
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar .sidebar-nav-link,
+  .app-sidebar .sidebar-nav-link:hover,
+  .app-sidebar .sidebar-nav-link-active {
+    transform: none;
+    transition: background 0ms, color 0ms;
+  }
+  header button:not([data-profile-trigger]):hover {
+    transform: none;
+  }
+  .glass-card:hover {
+    transform: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   UNIVERSAL PAGE UTILITIES — shared action buttons, table wrapper
+   ════════════════════════════════════════════════════════════ */
+
+/* Page heading — uniform across all sections */
+.page-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: hsl(var(--foreground));
+  line-height: 1.4;
+}
+.page-subtitle {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.125rem;
+  line-height: 1.4;
+}
+
+/* Segmented view-toggle — shared pattern for list/grid switchers */
+.view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted));
+}
+.view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  color: hsl(var(--muted-foreground));
+  transition: background 150ms ease, color 150ms ease;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+.view-toggle-btn:hover { color: hsl(var(--foreground)); }
+.view-toggle-btn.active {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.08);
+}
+
+/* Page-level action bar buttons — outline variant (sm) */
+.page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.page-btn:hover {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--primary) / 0.35);
+  color: hsl(var(--foreground));
+}
+.page-btn:active { transform: scale(0.97); }
+
+/* Page-level action bar buttons — primary variant */
+.page-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  transition: filter 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: 0 1px 3px hsl(var(--primary) / 0.25);
+}
+.page-btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px hsl(var(--primary) / 0.28);
+}
+.page-btn-primary:active { transform: scale(0.97); }
+
+/* Overflow-safe table scroll container */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll table { min-width: 600px; }
+
+/* Loading shimmer state */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+/* Responsive stack: side-by-side on md+, stacked below */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Stat card grid — 1 col mobile → 2 tablet → 4 desktop */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1rem;
+}
+@media (min-width: 640px)  { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Reduced motion for new utilities */
+@media (prefers-reduced-motion: reduce) {
+  .page-btn, .page-btn-primary { transition: none; }
+  .page-btn:active, .page-btn-primary:active { transform: none; }
 }

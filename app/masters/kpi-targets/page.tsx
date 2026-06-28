@@ -98,7 +98,8 @@ export default function KPITargetsMaster() {
                                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
                             </div>
                         ) : (
-                            <table className="w-full text-left text-sm">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm min-w-[480px]">
                                 <thead className="bg-muted/40 border-b border-border text-muted-foreground">
                                     <tr>
                                         <th className="p-4 font-semibold">User</th>
@@ -143,6 +144,7 @@ export default function KPITargetsMaster() {
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                         )}
                     </div>
                 </div>

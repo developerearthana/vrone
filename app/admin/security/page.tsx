@@ -141,7 +141,8 @@ export default function SecurityDashboard() {
                             <input type="text" placeholder="Search admins..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                     </div>
-                    <table className="w-full text-left text-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm min-w-[520px]">
                         <thead className="bg-background text-gray-500">
                             <tr>
                                 <th className="p-4 font-medium">Admin User</th>
@@ -198,13 +199,14 @@ export default function SecurityDashboard() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
 
             {activeTab === "requests" && (
                 <div className="grid gap-4">
                     {requests.map((req) => (
-                        <div key={req.id} className="glass-card p-6 rounded-xl border-l-4 border-l-orange-500 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div key={req.id} className="glass-card p-6 rounded-xl border border-orange-200/70 bg-orange-50/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div className="flex items-start gap-4">
                                 <div className="p-3 bg-white text-orange-600 rounded-full">
                                     <AlertTriangle className="w-6 h-6" />

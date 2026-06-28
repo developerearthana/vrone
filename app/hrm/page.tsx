@@ -1,8 +1,9 @@
 "use client";
 
-import { Users, UserCheck, CalendarDays, Cake, ArrowUpRight, Loader2 } from 'lucide-react';
+import { Users, UserCheck, CalendarDays, UserPlus, Cake, Loader2 } from 'lucide-react';
 import { AttendanceHeatmap } from '@/components/hrm/AttendanceHeatmap';
 import { PageWrapper, CardWrapper } from '@/components/ui/page-wrapper';
+import { StatCard } from '@/components/ui/stat-card';
 import { useState, useEffect } from 'react';
 import { getHRMDashboardStats } from '@/app/actions/hrm';
 import { toast } from 'sonner';
@@ -61,34 +62,15 @@ export default function HRMDashboard() {
     return (
         <PageWrapper className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-primary tracking-tight">HR Dashboard</h1>
-                <p className="text-muted-foreground mt-1">Manage your workforce, attendance and payroll.</p>
+                <h1 className="page-title">HR Dashboard</h1>
+                <p className="page-subtitle">Manage workforce, attendance and payroll.</p>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                    { label: "Total Employees", value: stats.totalEmployees, desc: "Active Staff", icon: Users, color: "bg-muted", textColor: "text-primary", border: "border-border", data: stats.lists.employees },
-                    { label: "Absentees", value: stats.lists.absentees.length || 0, desc: "Not Punched In", icon: CalendarDays, color: "bg-muted", textColor: "text-secondary-foreground", border: "border-border", data: stats.lists.absentees },
-                    { label: "Check-in", value: stats.checkedInToday, desc: "Present Today", icon: UserCheck, color: "bg-muted", textColor: "text-primary", border: "border-border", data: stats.lists.checkedIn },
-                    { label: "New Joiners", value: stats.newJoiners, desc: "This Month", icon: ArrowUpRight, color: "bg-muted", textColor: "text-green-500", border: "border-border", data: stats.lists.newJoiners },
-                ].map((stat, idx) => (
-                    <CardWrapper key={idx} delay={idx * 0.1} className={`glass-card p-5 rounded-xl border ${stat.border} flex flex-col justify-between h-32 hover:shadow-lg transition-all cursor-pointer`} onClick={() => setActiveList({ title: stat.label, data: stat.data })}>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-                                <h3 className="text-2xl font-bold text-foreground mt-1">{stat.value}</h3>
-                            </div>
-                            <div className={`p-2 rounded-lg ${stat.color}`}>
-                                <stat.icon className={`w-5 h-5 ${stat.textColor}`} />
-                            </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            {stat.icon === ArrowUpRight ? <ArrowUpRight className="w-3 h-3 text-green-500" /> : null}
-                            {stat.desc}
-                        </p>
-                    </CardWrapper>
-                ))}
+            <div className="stat-grid">
+                <StatCard label="Total Employees" value={stats.totalEmployees} sub="Active staff" icon={Users} iconColor="text-primary" onClick={() => setActiveList({ title: "Total Employees", data: stats.lists.employees })} />
+                <StatCard label="Absentees" value={stats.lists.absentees.length || 0} sub="Not punched in" icon={CalendarDays} iconColor="text-muted-foreground" onClick={() => setActiveList({ title: "Absentees", data: stats.lists.absentees })} />
+                <StatCard label="Checked In" value={stats.checkedInToday} sub="Present today" icon={UserCheck} iconColor="text-primary" onClick={() => setActiveList({ title: "Check-in", data: stats.lists.checkedIn })} />
+                <StatCard label="New Joiners" value={stats.newJoiners} sub="This month" icon={UserPlus} iconColor="text-green-500" trend="up" onClick={() => setActiveList({ title: "New Joiners", data: stats.lists.newJoiners })} />
             </div>
 
             <Sheet open={!!activeList} onOpenChange={(open) => !open && setActiveList(null)}>
