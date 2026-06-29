@@ -91,8 +91,11 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     permissions = Array.from(new Set([...permissions, ...user.customPermissions]));
                 }
 
-                const image = user.image ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=8B6F47&color=fff`;
+                // Never store base64 data URIs in the session — they bloat JWT cookies past Node.js limits
+                const rawImage = user.image as string | undefined;
+                const image = rawImage && !rawImage.startsWith('data:')
+                    ? rawImage
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=8B6F47&color=fff`;
 
                 return {
                     id: user._id.toString(),
@@ -111,7 +114,11 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 token.role = user.role;
                 token.name = user.name;
                 token.permissions = user.permissions || [];
-                token.picture = user.image;
+                // Strip base64 data URIs — they exceed Node.js's max header size when chunked into cookies
+                const img = user.image as string | undefined;
+                token.picture = img?.startsWith('data:')
+                    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name ?? '')}&background=8B6F47&color=fff`
+                    : img;
             }
             if (trigger === 'update' && session) {
                 if (session.image) token.picture = session.image;
