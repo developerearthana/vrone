@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { seedRoles } from '@/app/actions/role';
 import { seedDefaults } from '@/app/actions/organization';
 
 export async function GET() {
+    const session = await auth();
+    const role = (session?.user as any)?.role?.toLowerCase() || '';
+    if (!session?.user || !['admin', 'super-admin'].some(r => role.includes(r))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     try {
         console.log("Starting Seeding Process...");
 

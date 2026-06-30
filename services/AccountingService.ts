@@ -40,12 +40,12 @@ export class AccountingService {
 
         // Create transaction
         const transaction = await PettyCashTransaction.create({
-            ...sanitizedData,
+            ...(sanitizedData as any),
             amount: typeof sanitizedData.amount === 'string'
                 ? parseFloat(sanitizedData.amount)
                 : sanitizedData.amount,
             date: new Date(sanitizedData.date),
-            status: 'Pending', // Requires approval
+            status: 'Pending',
             createdBy: userId,
         });
 

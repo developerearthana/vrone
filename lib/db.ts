@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
 
+// Block operator injection attacks ($where, $nor, etc.) in query filters
+mongoose.set('sanitizeFilter', true);
+
 const MONGODB_URI = process.env.MONGODB_URI;
 
 interface MongooseCache {

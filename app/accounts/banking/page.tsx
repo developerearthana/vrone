@@ -20,7 +20,7 @@ export default function BankingPage() {
         try {
             const data = await getBankAccounts();
             setAccounts(data || []);
-        } catch { toast({ title: 'Failed to load accounts', variant: 'destructive' }); }
+        } catch { toast.error('Failed to load accounts'); }
         finally { setLoading(false); }
     }
 

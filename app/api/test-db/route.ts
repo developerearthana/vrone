@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import connectToDatabase from '@/lib/db';
 import User from '@/models/User';
 
 export async function GET() {
+    const session = await auth();
+    const role = (session?.user as any)?.role?.toLowerCase() || '';
+    if (!session?.user || !['admin', 'super-admin'].some(r => role.includes(r))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     try {
-        console.log("Testing DB Connection...");
         await connectToDatabase();
-        console.log("DB Connected.");
-
         const count = await User.countDocuments();
-        console.log("User Count:", count);
-
         return NextResponse.json({ success: true, count, message: "DB Connection Successful" });
     } catch (error: any) {
-        console.error("Test DB Error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
