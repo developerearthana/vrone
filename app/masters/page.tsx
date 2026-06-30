@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const cards = [
+    { name: 'Company Settings',    desc: 'Timezone, currency, attendance thresholds', href: '/masters/company-settings',  icon: Settings,  color: 'text-violet-600', bg: 'bg-violet-50' },
     { name: 'Company',             desc: 'Company details & branding',              href: '/masters/company',             icon: Building2, color: 'text-blue-600',   bg: 'bg-blue-50' },
     { name: 'Subsidiaries',        desc: 'Branch offices & entities',               href: '/masters/subsidiaries',        icon: Layers,    color: 'text-purple-600', bg: 'bg-purple-50' },
     { name: 'Departments',         desc: 'Functional units (HR, IT…)',              href: '/masters/departments',         icon: Briefcase, color: 'text-orange-600', bg: 'bg-orange-50' },

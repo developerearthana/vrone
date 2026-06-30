@@ -269,6 +269,12 @@ export class HRMService {
         return JSON.parse(JSON.stringify(record));
     }
 
+    async deleteAttendanceRecord(id: string) {
+        await connectToDatabase();
+        const deleted = await Attendance.findByIdAndDelete(id);
+        if (!deleted) throw new Error('Record not found');
+    }
+
     async punchOut(userId: string) {
         await connectToDatabase();
 

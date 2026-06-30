@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { format, subDays, addDays, isToday } from 'date-fns';
-import { getAllAttendance, getAttendanceReport, adminAdjustAttendance } from '@/app/actions/hrm';
+import { getAllAttendance, getAttendanceReport, adminAdjustAttendance, deleteAttendanceRecord } from '@/app/actions/hrm';
 import { getAllUsers } from '@/app/actions/user';
+import { getCompanySettings } from '@/app/actions/masters';
 import { PageWrapper } from '@/components/ui/page-wrapper';
-import { Clock, Users, CheckCircle, XCircle, ChevronLeft, ChevronRight, Download, Filter, Loader2, Calendar, BarChart3, Wifi, Plus, X, PenLine } from 'lucide-react';
+import { Clock, Users, CheckCircle, XCircle, ChevronLeft, ChevronRight, Download, Filter, Loader2, Calendar, BarChart3, Wifi, Plus, X, PenLine, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -52,11 +53,13 @@ export default function HRMAttendanceAdminPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [lateThresholdHour, setLateThresholdHour] = useState(10); // configurable via CompanySettings
 
     // Manual entry state
     const [showEntryPanel, setShowEntryPanel] = useState(false);
     const [entryForm, setEntryForm] = useState(EMPTY_FORM);
     const [saving, setSaving] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -64,6 +67,13 @@ export default function HRMAttendanceAdminPage() {
 
     useEffect(() => {
         getAllUsers().then(u => setAllUsers(Array.isArray(u) ? u : []));
+        getCompanySettings().then(s => {
+            const threshold = s['Late Threshold']; // e.g. "10:00"
+            if (threshold) {
+                const [h] = threshold.split(':').map(Number);
+                if (!isNaN(h)) setLateThresholdHour(h);
+            }
+        });
     }, []);
 
     const loadData = async () => {
@@ -126,10 +136,28 @@ export default function HRMAttendanceAdminPage() {
         }
     };
 
+    const handleDeleteRecord = async (id: string) => {
+        if (!confirm('Delete this attendance record? This cannot be undone.')) return;
+        setDeletingId(id);
+        try {
+            const res = await deleteAttendanceRecord(id);
+            if (res.success) {
+                toast.success('Record deleted');
+                setRecords(prev => prev.filter(r => r._id !== id));
+            } else {
+                toast.error(res.error || 'Failed to delete');
+            }
+        } catch {
+            toast.error('An error occurred');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     const stats = {
         present: records.filter(r => r.status === 'Present' || r.status === 'WFH').length,
         absent: records.filter(r => r.status === 'Absent').length,
-        late: records.filter(r => r.punchIn && new Date(r.punchIn).getHours() >= 10).length,
+        late: records.filter(r => r.punchIn && new Date(r.punchIn).getHours() >= lateThresholdHour).length,
         wfh: records.filter(r => r.workMode === 'Remote').length,
     };
 
@@ -305,7 +333,7 @@ export default function HRMAttendanceAdminPage() {
                                 {filteredRecords.map(record => {
                                     const user = record.userId;
                                     const initials = user?.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-                                    const punchInLate = record.punchIn && new Date(record.punchIn).getHours() >= 10;
+                                    const punchInLate = record.punchIn && new Date(record.punchIn).getHours() >= lateThresholdHour;
                                     return (
                                         <tr key={record._id} className="hover:bg-muted/20 transition-colors group">
                                             <td className="px-5 py-4">
@@ -358,13 +386,25 @@ export default function HRMAttendanceAdminPage() {
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <button
-                                                    onClick={() => openEntryForRecord(record)}
-                                                    className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
-                                                    title="Adjust attendance"
-                                                >
-                                                    <PenLine className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => openEntryForRecord(record)}
+                                                        className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                                                        title="Adjust attendance"
+                                                    >
+                                                        <PenLine className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteRecord(record._id)}
+                                                        disabled={deletingId === record._id}
+                                                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-muted-foreground hover:text-red-600 disabled:opacity-40"
+                                                        title="Delete record"
+                                                    >
+                                                        {deletingId === record._id
+                                                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                                                            : <Trash2 className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

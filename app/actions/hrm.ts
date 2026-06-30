@@ -205,6 +205,22 @@ export const getLiveUsers = async () => {
     }
 };
 
+export const deleteAttendanceRecord = async (id: string) => {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Unauthorized' };
+        const role = session.user.role?.toLowerCase() || '';
+        if (!role.includes('admin') && !role.includes('manager') && !role.includes('hr')) {
+            return { success: false, error: 'Access denied' };
+        }
+        await hrmService.deleteAttendanceRecord(id);
+        revalidatePath('/hrm/attendance-report');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 // --- Payroll Actions ---
 
 export const getPayslips = async (employeeId?: string) => {
