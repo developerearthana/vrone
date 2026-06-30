@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
     Send, User as UserIcon, Search, MoreVertical, Paperclip, Smile,
     Check, CheckCheck, Plus, Trash2, X, Users, Archive, Phone,
-    Loader2, ArrowLeft,
+    Loader2, ArrowLeft, Bold, Italic, Strikethrough, Code,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,43 @@ function isEmojiOnly(text: string): boolean {
     return t.length > 0 && EMOJI_ONLY_RE.test(t) && t.length <= 12;
 }
 
+// ─── Inline markdown renderer ──────────────────────────────────────────────────
+// Supports: *bold*, _italic_, ~strikethrough~, `code`, > blockquote
+function renderInline(text: string): React.ReactNode[] {
+    const result: React.ReactNode[] = [];
+    const re = /\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~|`([^`\n]+)`/g;
+    let lastIndex = 0;
+    let key = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+        if (match.index > lastIndex) result.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+        if (match[1] !== undefined) result.push(<strong key={key++} className="font-bold">{match[1]}</strong>);
+        else if (match[2] !== undefined) result.push(<em key={key++} className="italic">{match[2]}</em>);
+        else if (match[3] !== undefined) result.push(<span key={key++} className="line-through opacity-75">{match[3]}</span>);
+        else if (match[4] !== undefined) result.push(<code key={key++} className="bg-black/10 rounded px-1 py-px font-mono text-[12.5px] select-all">{match[4]}</code>);
+        lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) result.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+    return result;
+}
+
+function FormattedMessage({ content, isMe }: { content: string; isMe: boolean }) {
+    const lines = content.split('\n');
+    return (
+        <>
+            {lines.map((line, i) => (
+                <span key={i} className="block leading-relaxed">
+                    {i > 0 && line === '' ? <span className="block h-1" /> : null}
+                    {line.startsWith('> ')
+                        ? <span className={`block pl-2 border-l-2 ${isMe ? 'border-green-600/40' : 'border-gray-400/60'} italic opacity-80`}>{renderInline(line.slice(2))}</span>
+                        : renderInline(line)
+                    }
+                </span>
+            ))}
+        </>
+    );
+}
+
 // ─── Avatar circle ─────────────────────────────────────────────────────────────
 function ChatAvatar({ name, isGroup, size = 'md', image }: { name: string; isGroup?: boolean; size?: 'sm' | 'md' | 'lg'; image?: string }) {
     const s = size === 'sm' ? 'w-7 h-7 text-[11px]' : size === 'lg' ? 'w-11 h-11 text-sm' : 'w-9 h-9 text-xs';
@@ -97,7 +134,7 @@ export default function ChatInterface() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const emojiRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -198,6 +235,32 @@ export default function ChatInterface() {
             toast.error('Failed to send message');
             setMessages(prev => prev.filter(m => m._id !== tempId));
         }
+    };
+
+    // ── Text formatting: wrap selection in markers ────────────────────────────
+    const handleFormat = (open: string, close?: string) => {
+        const el = inputRef.current;
+        if (!el) return;
+        const cm = close || open;
+        const start = el.selectionStart ?? draft.length;
+        const end = el.selectionEnd ?? draft.length;
+        let newVal: string;
+        let cursorStart: number;
+        if (start === end) {
+            newVal = draft.slice(0, start) + open + cm + draft.slice(end);
+            cursorStart = start + open.length;
+        } else {
+            newVal = draft.slice(0, start) + open + draft.slice(start, end) + cm + draft.slice(end);
+            cursorStart = start + open.length;
+        }
+        setDraft(newVal);
+        requestAnimationFrame(() => {
+            el.setSelectionRange(cursorStart, start === end ? cursorStart : end + open.length);
+            el.focus();
+            // Re-trigger auto-resize
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        });
     };
 
     // ── Emoji picker close on outside click ───────────────────────────────────
@@ -566,7 +629,7 @@ export default function ChatInterface() {
                                                             {msg.content && (
                                                                 emojiOnly
                                                                     ? <span className="text-[42px] leading-none block select-none">{msg.content}</span>
-                                                                    : <span className="leading-relaxed text-[14px]">{msg.content}</span>
+                                                                    : <FormattedMessage content={msg.content} isMe={isMe} />
                                                             )}
 
                                                             {/* Timestamp + read receipt */}
@@ -620,66 +683,102 @@ export default function ChatInterface() {
                                 </div>
                             )}
 
-                            <form onSubmit={handleSend} className="flex items-end gap-2">
-                                {/* Emoji */}
-                                <div ref={emojiRef} className="relative shrink-0">
-                                    <button type="button" onClick={() => setShowEmoji(v => !v)}
-                                        className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors">
-                                        <Smile className="w-5 h-5" />
+                            <form onSubmit={handleSend} className="flex flex-col gap-1.5">
+                                {/* Formatting toolbar */}
+                                <div className="flex items-center gap-0.5 px-1">
+                                    {[
+                                        { icon: Bold, title: 'Bold (*)', open: '*' },
+                                        { icon: Italic, title: 'Italic (_)', open: '_' },
+                                        { icon: Strikethrough, title: 'Strike (~)', open: '~' },
+                                        { icon: Code, title: 'Code (`)', open: '`' },
+                                    ].map(({ icon: Icon, title, open }) => (
+                                        <button key={open} type="button" title={title}
+                                            onMouseDown={e => { e.preventDefault(); handleFormat(open); }}
+                                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/8 transition-colors">
+                                            <Icon className="w-3.5 h-3.5" />
+                                        </button>
+                                    ))}
+                                    <span className="mx-1.5 text-border">|</span>
+                                    <button type="button" title="Quote (> )" onMouseDown={e => { e.preventDefault(); handleFormat('> ', ''); }}
+                                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/8 transition-colors text-[11px] font-bold leading-none">
+                                        "
                                     </button>
-                                    <AnimatePresence>
-                                        {showEmoji && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                                                transition={{ duration: 0.14 }}
-                                                className="absolute bottom-12 left-0 z-50"
-                                            >
-                                                <EmojiPicker
-                                                    onEmojiClick={handleEmojiClick}
-                                                    theme={Theme.LIGHT}
-                                                    emojiStyle={EmojiStyle.NATIVE}
-                                                    height={380}
-                                                    width={320}
-                                                    previewConfig={{ showPreview: false }}
-                                                />
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                    <span className="ml-auto text-[10px] text-muted-foreground/50 pr-1 hidden sm:block">Shift+Enter for newline</span>
                                 </div>
 
-                                {/* File attach */}
-                                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}
-                                    className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors shrink-0">
-                                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
-                                </button>
-                                <input ref={fileInputRef} type="file" className="hidden" multiple
-                                    accept="image/*,application/pdf,.doc,.docx" onChange={handleFileSelect} />
+                                {/* Input row */}
+                                <div className="flex items-end gap-2">
+                                    {/* Emoji */}
+                                    <div ref={emojiRef} className="relative shrink-0">
+                                        <button type="button" onClick={() => setShowEmoji(v => !v)}
+                                            className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors">
+                                            <Smile className="w-5 h-5" />
+                                        </button>
+                                        <AnimatePresence>
+                                            {showEmoji && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                    transition={{ duration: 0.14 }}
+                                                    className="absolute bottom-12 left-0 z-50"
+                                                >
+                                                    <EmojiPicker
+                                                        onEmojiClick={handleEmojiClick}
+                                                        theme={Theme.LIGHT}
+                                                        emojiStyle={EmojiStyle.NATIVE}
+                                                        height={380}
+                                                        width={320}
+                                                        previewConfig={{ showPreview: false }}
+                                                    />
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
 
-                                {/* Text input */}
-                                <input
-                                    ref={inputRef}
-                                    value={draft}
-                                    onChange={e => setDraft(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(e as any); }}
-                                    placeholder="Type a message"
-                                    className="flex-1 bg-white rounded-xl px-4 py-2.5 text-sm outline-none border border-border focus:ring-2 focus:ring-primary/20 shadow-sm"
-                                />
+                                    {/* File attach */}
+                                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}
+                                        className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors shrink-0 self-end mb-0.5">
+                                        {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+                                    </button>
+                                    <input ref={fileInputRef} type="file" className="hidden" multiple
+                                        accept="image/*,application/pdf,.doc,.docx" onChange={handleFileSelect} />
 
-                                {/* Send */}
-                                <button
-                                    type="submit"
-                                    disabled={(!draft.trim() && pendingAttachments.length === 0) || isUploading || isSending}
-                                    className={cn(
-                                        "w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all",
-                                        draft.trim() || pendingAttachments.length > 0
-                                            ? "bg-primary text-white shadow-md hover:bg-primary/90 scale-100"
-                                            : "bg-muted text-muted-foreground cursor-not-allowed"
-                                    )}
-                                >
-                                    {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                </button>
+                                    {/* Textarea (auto-resize, max 3 rows) */}
+                                    <textarea
+                                        ref={inputRef}
+                                        rows={1}
+                                        value={draft}
+                                        onChange={e => {
+                                            setDraft(e.target.value);
+                                            e.target.style.height = 'auto';
+                                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                        }}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSend(e as any);
+                                            }
+                                        }}
+                                        placeholder="Type a message… (*bold* _italic_ ~strike~ `code`)"
+                                        className="flex-1 bg-white rounded-xl px-4 py-2.5 text-[14px] outline-none border border-border focus:ring-2 focus:ring-primary/20 shadow-sm resize-none overflow-hidden leading-relaxed"
+                                        style={{ minHeight: '42px', maxHeight: '120px' }}
+                                    />
+
+                                    {/* Send */}
+                                    <button
+                                        type="submit"
+                                        disabled={(!draft.trim() && pendingAttachments.length === 0) || isUploading || isSending}
+                                        className={cn(
+                                            "w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all self-end",
+                                            draft.trim() || pendingAttachments.length > 0
+                                                ? "bg-primary text-white shadow-md hover:bg-primary/90"
+                                                : "bg-muted text-muted-foreground cursor-not-allowed"
+                                        )}
+                                    >
+                                        {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    </button>
+                                </div>
                             </form>
                         </div>
                     </>
