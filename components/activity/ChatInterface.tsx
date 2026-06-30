@@ -49,6 +49,13 @@ function dateSeparatorLabel(dateStr: string) {
     return format(d, 'dd MMM yyyy');
 }
 
+// ─── Emoji-only detection ──────────────────────────────────────────────────────
+const EMOJI_ONLY_RE = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic})[\p{Emoji_Presentation}\p{Extended_Pictographic}\s‍️]*$/u;
+function isEmojiOnly(text: string): boolean {
+    const t = text.trim();
+    return t.length > 0 && EMOJI_ONLY_RE.test(t) && t.length <= 12;
+}
+
 // ─── Avatar circle ─────────────────────────────────────────────────────────────
 function ChatAvatar({ name, isGroup, size = 'md', image }: { name: string; isGroup?: boolean; size?: 'sm' | 'md' | 'lg'; image?: string }) {
     const s = size === 'sm' ? 'w-7 h-7 text-[11px]' : size === 'lg' ? 'w-11 h-11 text-sm' : 'w-9 h-9 text-xs';
@@ -78,7 +85,7 @@ export default function ChatInterface() {
 
     const [availableUsers, setAvailableUsers] = useState<any[]>([]);
     const [mastersTeams, setMastersTeams] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'Recent' | 'Contacts' | 'Teams'>('Recent');
+    const [activeTab, setActiveTab] = useState<'Recent' | 'Groups' | 'Contacts' | 'Teams'>('Recent');
     const [searchQuery, setSearchQuery] = useState('');
     const [isNewChatOpen, setIsNewChatOpen] = useState(false);
     const [showMobileChat, setShowMobileChat] = useState(false);
@@ -289,10 +296,20 @@ export default function ChatInterface() {
 
     const activeConversation = conversations.find(c => c._id === activeConvId);
 
+    // ── Sender helpers (for group message attribution) ────────────────────────
+    const getSenderName = useCallback((senderId: string) =>
+        availableUsers.find(u => u._id === senderId)?.name || 'Unknown',
+    [availableUsers]);
+
+    const getSenderImage = useCallback((senderId: string) =>
+        availableUsers.find(u => u._id === senderId)?.image,
+    [availableUsers]);
+
     // ── Sidebar list ──────────────────────────────────────────────────────────
     const displayList = (() => {
         const q = searchQuery.toLowerCase();
         if (activeTab === 'Contacts') return availableUsers.filter(u => u.name?.toLowerCase().includes(q));
+        if (activeTab === 'Groups') return conversations.filter(c => c.type === 'Group' && convName(c).toLowerCase().includes(q));
         if (activeTab === 'Teams') {
             return mastersTeams.filter(t => {
                 const inTeam = (t.members || []).some((m: any) => String(m._id || m) === String(userId))
@@ -344,11 +361,11 @@ export default function ChatInterface() {
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex gap-1 p-0.5 bg-background rounded-lg border border-border">
-                        {(['Recent', 'Contacts', 'Teams'] as const).map(tab => (
-                            <button key={tab} onClick={() => setActiveTab(tab)}
-                                className={cn("flex-1 text-xs font-semibold py-1.5 rounded-md transition-colors",
-                                    activeTab === tab ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                    <div className="flex gap-0.5 p-0.5 bg-muted/60 rounded-lg border border-border">
+                        {(['Recent', 'Groups', 'Contacts', 'Teams'] as const).map(tab => (
+                            <button key={tab} onClick={() => { setActiveTab(tab); setSearchQuery(''); }}
+                                className={cn("flex-1 text-[11px] font-semibold py-1.5 rounded-md transition-all",
+                                    activeTab === tab ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/60")}>
                                 {tab}
                             </button>
                         ))}
@@ -376,16 +393,17 @@ export default function ChatInterface() {
                     ) : (
                         displayList.map((item: any) => {
                             const id = item._id;
-                            const isGroup = activeTab === 'Teams' || item.type === 'Group';
+                            const isConvTab = activeTab === 'Recent' || activeTab === 'Groups';
+                            const isGroup = activeTab === 'Teams' || activeTab === 'Groups' || item.type === 'Group';
                             const name = activeTab === 'Contacts' ? item.name
                                 : activeTab === 'Teams' ? item.name
                                 : convName(item as Conversation);
-                            const img = activeTab === 'Recent' ? convImage(item as Conversation) : item.image;
+                            const img = isConvTab ? convImage(item as Conversation) : item.image;
                             const subtitle = activeTab === 'Contacts' ? (item.jobTitle || item.role || item.email)
-                                : activeTab === 'Teams' ? `${item.members?.length || 0} members`
-                                : (item.lastMessage?.content || '');
-                            const unread = activeTab === 'Recent' && userId && item.unreadCounts?.[userId] || 0;
-                            const time = activeTab === 'Recent' && item.updatedAt
+                                : activeTab === 'Teams' ? `${(item.members?.length || 0)} members`
+                                : ((item.lastMessage as any)?.content || '');
+                            const unread = isConvTab && userId ? (item.unreadCounts?.[userId] || 0) : 0;
+                            const time = isConvTab && item.updatedAt
                                 ? format(new Date(item.updatedAt), isToday(new Date(item.updatedAt)) ? 'HH:mm' : 'dd MMM')
                                 : null;
                             const onClick = activeTab === 'Contacts' ? () => startChat(id)
@@ -409,7 +427,7 @@ export default function ChatInterface() {
                                                         {unread}
                                                     </span>
                                                 )}
-                                                {activeTab === 'Recent' && (
+                                                {(activeTab === 'Recent' || activeTab === 'Groups') && (
                                                     <button onClick={e => handleDeleteConversation(e, id)}
                                                         className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 rounded transition-all">
                                                         <Trash2 className="w-3 h-3" />
@@ -491,53 +509,84 @@ export default function ChatInterface() {
                                             const isMe = msg.sender === userId;
                                             const prevMsg = group.msgs[i - 1];
                                             const sameAsPrev = prevMsg?.sender === msg.sender;
+                                            const isGroup = activeConversation.type === 'Group';
+                                            const emojiOnly = msg.content ? isEmojiOnly(msg.content) : false;
+                                            const senderName = getSenderName(msg.sender);
+                                            const senderImg = getSenderImage(msg.sender);
 
                                             return (
                                                 <motion.div
                                                     key={msg._id}
-                                                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                                                    initial={{ opacity: 0, y: 5, scale: 0.97 }}
                                                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    transition={{ duration: 0.12 }}
-                                                    className={cn("flex mb-0.5", isMe ? "justify-end" : "justify-start", sameAsPrev ? "mt-0.5" : "mt-2")}
+                                                    transition={{ duration: 0.13, ease: [0.22, 1, 0.36, 1] }}
+                                                    className={cn("flex items-end mb-0.5 gap-1.5", isMe ? "justify-end" : "justify-start", sameAsPrev ? "mt-0.5" : "mt-3")}
                                                 >
-                                                    {/* Incoming avatar (group only) */}
-                                                    {!isMe && activeConversation.type === 'Group' && (
-                                                        <div className="w-6 shrink-0 mr-1.5">
-                                                            {!sameAsPrev && <ChatAvatar name="?" size="sm" />}
+                                                    {/* Incoming avatar — group only */}
+                                                    {!isMe && isGroup && (
+                                                        <div className="w-7 shrink-0 self-end mb-0.5">
+                                                            {!sameAsPrev
+                                                                ? <ChatAvatar name={senderName} size="sm" image={senderImg} />
+                                                                : <div className="w-7" />}
                                                         </div>
                                                     )}
 
-                                                    <div className={cn(
-                                                        "relative max-w-[72%] px-3 py-2 text-sm shadow-sm",
-                                                        isMe
-                                                            ? "bg-[#d9fdd3] text-gray-900 rounded-tl-2xl rounded-bl-2xl rounded-tr-md rounded-br-2xl"
-                                                            : "bg-white text-gray-900 rounded-tr-2xl rounded-br-2xl rounded-tl-md rounded-bl-2xl",
-                                                        sameAsPrev && (isMe ? "rounded-tr-2xl" : "rounded-tl-2xl")
-                                                    )}>
-                                                        {/* Attachments */}
-                                                        {msg.attachments && msg.attachments.length > 0 && (
-                                                            <div className="flex flex-col gap-1.5 mb-1.5">
-                                                                {msg.attachments.map((url, idx) => (
-                                                                    isImage(url)
-                                                                        ? <img key={idx} src={url} alt="Attachment" className="rounded-lg max-h-52 object-contain bg-black/5" />
-                                                                        : <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
-                                                                            className="flex items-center gap-2 text-xs bg-black/5 rounded-lg p-2 hover:bg-black/10">
-                                                                            <Paperclip className="w-3 h-3" /> View attachment
-                                                                        </a>
-                                                                ))}
-                                                            </div>
+                                                    <div className="flex flex-col" style={{ alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '72%' }}>
+                                                        {/* Sender name (group, first in run) */}
+                                                        {!isMe && isGroup && !sameAsPrev && (
+                                                            <span className="text-[11px] font-semibold text-primary/80 mb-0.5 px-1">{senderName}</span>
                                                         )}
 
-                                                        {/* Content */}
-                                                        {msg.content && <span className="leading-snug">{msg.content}</span>}
+                                                        <div className={cn(
+                                                            emojiOnly
+                                                                ? "px-1 py-0.5 bg-transparent shadow-none"
+                                                                : cn(
+                                                                    "relative px-3 py-2 shadow-sm",
+                                                                    isMe
+                                                                        ? "bg-[#d9fdd3] text-gray-900 rounded-tl-2xl rounded-bl-2xl rounded-tr-md rounded-br-2xl"
+                                                                        : "bg-white text-gray-900 rounded-tr-2xl rounded-br-2xl rounded-tl-md rounded-bl-2xl",
+                                                                    sameAsPrev && (isMe ? "rounded-tr-2xl" : "rounded-tl-2xl")
+                                                                )
+                                                        )}>
+                                                            {/* Attachments */}
+                                                            {msg.attachments && msg.attachments.length > 0 && (
+                                                                <div className="flex flex-col gap-1.5 mb-1.5">
+                                                                    {msg.attachments.map((url, idx) => (
+                                                                        isImage(url)
+                                                                            ? <img key={idx} src={url} alt="Attachment" className="rounded-lg max-h-52 object-contain bg-black/5" />
+                                                                            : <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
+                                                                                className="flex items-center gap-2 text-[13px] bg-black/5 rounded-lg p-2 hover:bg-black/10">
+                                                                                <Paperclip className="w-3.5 h-3.5" /> View attachment
+                                                                            </a>
+                                                                    ))}
+                                                                </div>
+                                                            )}
 
-                                                        {/* Timestamp + read receipt */}
-                                                        <div className={cn("flex items-center justify-end gap-0.5 mt-0.5", msg.content ? "pl-6" : "")}>
-                                                            <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                                                                {format(new Date(msg.createdAt), 'HH:mm')}
-                                                            </span>
-                                                            {isMe && <ReadIcon msg={msg} />}
+                                                            {/* Content */}
+                                                            {msg.content && (
+                                                                emojiOnly
+                                                                    ? <span className="text-[42px] leading-none block select-none">{msg.content}</span>
+                                                                    : <span className="leading-relaxed text-[14px]">{msg.content}</span>
+                                                            )}
+
+                                                            {/* Timestamp + read receipt */}
+                                                            {!emojiOnly && (
+                                                                <div className={cn("flex items-center justify-end gap-0.5 mt-1", msg.content ? "pl-8" : "")}>
+                                                                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                                                        {format(new Date(msg.createdAt), 'HH:mm')}
+                                                                    </span>
+                                                                    {isMe && <ReadIcon msg={msg} />}
+                                                                </div>
+                                                            )}
                                                         </div>
+
+                                                        {/* Emoji-only timestamp below */}
+                                                        {emojiOnly && (
+                                                            <div className="flex items-center gap-0.5 px-1 mt-0.5">
+                                                                <span className="text-[10px] text-gray-400">{format(new Date(msg.createdAt), 'HH:mm')}</span>
+                                                                {isMe && <ReadIcon msg={msg} />}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </motion.div>
                                             );

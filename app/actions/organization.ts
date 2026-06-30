@@ -173,11 +173,29 @@ export const createDepartment = createJSONAction(DepartmentSchema, async (data) 
 export const updateDepartment = createJSONAction(DepartmentSchema, async (data) => {
     await connectToDatabase();
     if (!data.id) throw new Error("ID required for update");
+
+    // Fetch old name before overwriting so we can cascade the rename
+    const oldDept = await Department.findById(data.id).lean() as any;
+    const oldName: string | undefined = oldDept?.name;
+
     const dept = await Department.findByIdAndUpdate(
         data.id,
         { subsidiaryId: data.subsidiaryId, name: data.name, code: data.code, headOfDepartment: data.headOfDepartment, employees: data.employees || [] },
         { new: true }
     );
+
+    // Cascade rename to all User + Employee records that stored the old dept name as a string
+    if (oldName && oldName !== data.name) {
+        const [UserModel, EmployeeModel] = await Promise.all([
+            import('@/models/User').then(m => m.default),
+            import('@/models/Employee').then(m => m.default),
+        ]);
+        await Promise.all([
+            UserModel.updateMany({ dept: oldName }, { $set: { dept: data.name } }),
+            EmployeeModel.updateMany({ dept: oldName }, { $set: { dept: data.name } }),
+        ]);
+    }
+
     revalidatePath("/masters/departments");
     return { success: true, department: JSON.parse(JSON.stringify(dept)) };
 });

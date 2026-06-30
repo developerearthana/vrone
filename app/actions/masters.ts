@@ -1,6 +1,8 @@
 "use server";
 
 import Master, { IMaster } from "@/models/Master";
+import User from "@/models/User";
+import Employee from "@/models/Employee";
 import connectToDatabase from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -31,12 +33,22 @@ export async function createMaster(data: Partial<IMaster>) {
 }
 
 /**
- * Update a master entry
+ * Update a master entry. For JobTitle type, cascades the rename to User + Employee records
+ * so existing records always reflect the current label without manual intervention.
  */
 export async function updateMaster(id: string, data: Partial<IMaster>) {
     await connectToDatabase();
     try {
+        const old = await Master.findById(id).lean() as any;
         const master = await Master.findByIdAndUpdate(id, data, { new: true });
+
+        if (old?.type === 'JobTitle' && data.label && old.label !== data.label) {
+            await Promise.all([
+                User.updateMany({ jobTitle: old.label }, { $set: { jobTitle: data.label } }),
+                Employee.updateMany({ jobTitle: old.label }, { $set: { jobTitle: data.label } }),
+            ]);
+        }
+
         revalidatePath("/masters/kpi-metrics");
         revalidatePath("/masters/vendor-categories");
         revalidatePath("/masters/vendors");
