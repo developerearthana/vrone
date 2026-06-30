@@ -160,9 +160,16 @@ export const punchOut = async (_clientUserId?: string) => {
 
 // --- Leave Actions ---
 
+// Parse "YYYY-MM-DD" as local midnight — new Date("YYYY-MM-DD") is UTC midnight which
+// shifts to the wrong day in non-UTC timezones (e.g. IST +5:30).
+function localDateFromStr(dateStr: string): Date {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
 export const getAllAttendance = async (dateStr?: string) => {
     try {
-        const date = dateStr ? new Date(dateStr) : new Date();
+        const date = dateStr ? localDateFromStr(dateStr) : new Date();
         const data = await hrmService.getAllAttendance(date);
         return { success: true, data };
     } catch (error: any) {
@@ -181,7 +188,7 @@ export const getAttendanceReport = async (month: number, year: number) => {
 
 export const getAbsentees = async (dateStr?: string) => {
     try {
-        const date = dateStr ? new Date(dateStr) : new Date();
+        const date = dateStr ? localDateFromStr(dateStr) : new Date();
         const data = await hrmService.getAbsentees(date);
         return { success: true, data };
     } catch (error: any) {

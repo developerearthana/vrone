@@ -236,8 +236,11 @@ export class HRMService {
     }) {
         await connectToDatabase();
 
-        const date = new Date(data.date);
-        date.setHours(0, 0, 0, 0);
+        // Parse as local date components — new Date("YYYY-MM-DD") is UTC midnight which
+        // shifts to the wrong calendar day in non-UTC timezones, causing the upsert to
+        // miss the existing record and create a duplicate with a different date key.
+        const [y, m, d] = data.date.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
 
         const punchInDate = data.punchIn ? new Date(data.punchIn) : undefined;
         const punchOutDate = data.punchOut ? new Date(data.punchOut) : undefined;

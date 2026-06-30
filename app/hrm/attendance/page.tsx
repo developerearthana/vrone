@@ -15,17 +15,25 @@ export default function AttendancePage() {
     const { data: session } = useSession();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isLoading, setIsLoading] = useState(true);
-    const [isPunchLoading, setIsPunchLoading] = useState(false); // action in-progress
+    const [isPunchLoading, setIsPunchLoading] = useState(false);
     const [isPunchedIn, setIsPunchedIn] = useState(false);
     const [punchInTime, setPunchInTime] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'calendar' | 'reports'>('calendar');
     const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
     const [clockNow, setClockNow] = useState(new Date());
+    // Persisted work mode preference — defaults to WFH (Remote) since that's the user's default
+    const [workMode, setWorkMode] = useState<'Office' | 'Remote'>('Remote');
 
     // Tick the clock every second
     useEffect(() => {
         const id = setInterval(() => setClockNow(new Date()), 1000);
         return () => clearInterval(id);
+    }, []);
+
+    // Restore persisted work mode preference
+    useEffect(() => {
+        const saved = localStorage.getItem('attendanceWorkMode');
+        if (saved === 'Office' || saved === 'Remote') setWorkMode(saved);
     }, []);
 
     // Load on mount AND whenever month changes.
@@ -45,6 +53,10 @@ export default function AttendancePage() {
                 if (todayRecord && todayRecord.punchIn && !todayRecord.punchOut) {
                     setIsPunchedIn(true);
                     setPunchInTime(format(new Date(todayRecord.punchIn), 'HH:mm'));
+                    // Reflect the actual work mode that was recorded at punch-in time
+                    if (todayRecord.workMode === 'Office' || todayRecord.workMode === 'Remote') {
+                        setWorkMode(todayRecord.workMode);
+                    }
                 } else {
                     setIsPunchedIn(false);
                     setPunchInTime(null);
@@ -67,12 +79,17 @@ export default function AttendancePage() {
             );
         });
 
+    const handleWorkModeChange = (mode: 'Office' | 'Remote') => {
+        setWorkMode(mode);
+        localStorage.setItem('attendanceWorkMode', mode);
+    };
+
     const handlePunch = async () => {
         setIsPunchLoading(true);
         try {
             if (!isPunchedIn) {
                 const location = await getLocation();
-                const res = await punchIn(undefined, 'Office', location);
+                const res = await punchIn(undefined, workMode, location);
                 if (res.success) {
                     setIsPunchedIn(true);
                     setPunchInTime(format(new Date(res.data.punchIn), 'HH:mm'));
@@ -160,7 +177,41 @@ export default function AttendancePage() {
                             </div>
                         </div>
 
-                        <div className="my-10 flex justify-center">
+                        {/* Work mode selector — only editable before punching in */}
+                        <div className="mt-4 mb-1">
+                            <div className={cn(
+                                'flex rounded-xl border p-1 gap-1 transition-opacity',
+                                isPunchedIn ? 'opacity-50 pointer-events-none' : '',
+                                'bg-gray-50 border-gray-200'
+                            )}>
+                                <button
+                                    onClick={() => handleWorkModeChange('Office')}
+                                    className={cn(
+                                        'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all',
+                                        workMode === 'Office'
+                                            ? 'bg-white shadow-sm text-blue-700 border border-blue-100'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    )}
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                    Office
+                                </button>
+                                <button
+                                    onClick={() => handleWorkModeChange('Remote')}
+                                    className={cn(
+                                        'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all',
+                                        workMode === 'Remote'
+                                            ? 'bg-white shadow-sm text-purple-700 border border-purple-100'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    )}
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                                    Work from Home
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="my-6 flex justify-center">
                             <motion.button
                                 whileTap={isLoading || isPunchLoading ? {} : { scale: 0.95 }}
                                 whileHover={isLoading || isPunchLoading ? {} : { scale: 1.05 }}
@@ -202,7 +253,9 @@ export default function AttendancePage() {
                                         <Clock className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">Currently Active</p>
+                                        <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide">
+                                            {workMode === 'Remote' ? 'Working from Home' : 'In Office'}
+                                        </p>
                                         <p className="text-sm font-medium text-emerald-800">Started at <span className="font-bold">{punchInTime}</span></p>
                                     </div>
                                 </motion.div>

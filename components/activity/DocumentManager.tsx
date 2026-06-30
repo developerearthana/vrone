@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     FileText, Download, Folder, FolderOpen, UploadCloud, Trash2, File,
     FileImage, FileSpreadsheet, Video, Loader2, LayoutGrid, List, Eye,
-    Edit2, ChevronRight, ChevronDown, HardDrive, Search, ExternalLink, X,
+    Edit2, ChevronRight, ChevronDown, HardDrive, Search, ExternalLink, X, Maximize2, Minimize2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -198,10 +198,44 @@ export default function DocumentManager() {
 
     // ── Dialogs ─────────────────────────────────────────────────────────────
     const [previewFile, setPreviewFile] = useState<DocItem | null>(null);
+    const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+    const [previewFullscreen, setPreviewFullscreen] = useState(false);
+    const blobUrlRef = useRef<string | null>(null);
     const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [isRenameOpen, setIsRenameOpen] = useState(false);
     const [renameData, setRenameData] = useState<{ id: string; name: string } | null>(null);
+
+    // ── Preview Blob URL ─────────────────────────────────────────────────────
+    // Browsers block data: URLs in <iframe>/<embed>. Convert to an object URL instead.
+    useEffect(() => {
+        if (blobUrlRef.current) {
+            URL.revokeObjectURL(blobUrlRef.current);
+            blobUrlRef.current = null;
+        }
+        if (!previewFile) { setPreviewBlobUrl(null); return; }
+
+        const src = previewFile.url;
+        if (src?.startsWith('data:')) {
+            try {
+                const [header, b64] = src.split(',');
+                const mime = header.slice(5, header.indexOf(';'));
+                const binary = atob(b64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+                blobUrlRef.current = url;
+                setPreviewBlobUrl(url);
+            } catch {
+                setPreviewBlobUrl(src);
+            }
+        } else {
+            setPreviewBlobUrl(src);
+        }
+        return () => {
+            if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+        };
+    }, [previewFile]);
 
     // ── Init ─────────────────────────────────────────────────────────────────
 
@@ -914,41 +948,113 @@ export default function DocumentManager() {
             </Dialog>
 
             {/* File Preview */}
-            <Dialog open={!!previewFile} onOpenChange={open => { if (!open) setPreviewFile(null); }}>
-                <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-card flex-shrink-0">
-                        <h3 className="font-semibold text-sm truncate max-w-[60%]">{previewFile?.name}</h3>
-                        <div className="flex items-center gap-3">
-                            <a
-                                href={previewFile?.url}
-                                download
-                                className="text-primary hover:underline text-sm flex items-center gap-1"
-                            >
-                                <Download className="w-3.5 h-3.5" />
-                                Download
-                            </a>
-                            <Button variant="ghost" size="sm" onClick={() => setPreviewFile(null)}>
-                                Close
-                            </Button>
+            {previewFile && (
+                <div
+                    className={cn(
+                        'fixed inset-0 z-[200] flex flex-col bg-black/80 backdrop-blur-sm',
+                        previewFullscreen ? '' : 'p-4 md:p-10'
+                    )}
+                    onClick={e => { if (e.target === e.currentTarget) { setPreviewFile(null); setPreviewFullscreen(false); } }}
+                >
+                    <div className={cn(
+                        'flex flex-col bg-card shadow-2xl overflow-hidden w-full mx-auto',
+                        previewFullscreen ? 'h-full rounded-none' : 'max-w-5xl h-full rounded-2xl'
+                    )}>
+                        {/* Toolbar */}
+                        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border bg-card flex-shrink-0">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {previewFile.type.includes('pdf') && <FileText className="w-4 h-4 text-red-500 shrink-0" />}
+                                {previewFile.type.includes('image') && <FileImage className="w-4 h-4 text-blue-500 shrink-0" />}
+                                {!previewFile.type.includes('pdf') && !previewFile.type.includes('image') && <File className="w-4 h-4 text-muted-foreground shrink-0" />}
+                                <span className="font-medium text-sm truncate text-foreground">{previewFile.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                {previewBlobUrl && (
+                                    <a
+                                        href={previewBlobUrl}
+                                        download={previewFile.name}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    >
+                                        <Download className="w-3.5 h-3.5" />
+                                        Download
+                                    </a>
+                                )}
+                                {previewBlobUrl && previewFile.type.includes('pdf') && (
+                                    <a
+                                        href={previewBlobUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        Open tab
+                                    </a>
+                                )}
+                                <button
+                                    onClick={() => setPreviewFullscreen(f => !f)}
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    title={previewFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                                >
+                                    {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                                </button>
+                                <button
+                                    onClick={() => { setPreviewFile(null); setPreviewFullscreen(false); }}
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                    title="Close"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-hidden bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center">
+                            {!previewBlobUrl ? (
+                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            ) : previewFile.type.includes('image') ? (
+                                <img
+                                    src={previewBlobUrl}
+                                    alt={previewFile.name}
+                                    className="max-w-full max-h-full object-contain"
+                                />
+                            ) : previewFile.type.includes('pdf') ? (
+                                <embed
+                                    src={`${previewBlobUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                                    type="application/pdf"
+                                    className="w-full h-full border-0"
+                                    title={previewFile.name}
+                                />
+                            ) : previewFile.type.includes('video') ? (
+                                <video
+                                    src={previewBlobUrl}
+                                    controls
+                                    className="max-w-full max-h-full rounded shadow-lg"
+                                />
+                            ) : previewFile.type.includes('audio') ? (
+                                <div className="flex flex-col items-center gap-4 p-8">
+                                    <File className="w-16 h-16 text-muted-foreground" />
+                                    <p className="text-sm text-muted-foreground">{previewFile.name}</p>
+                                    <audio src={previewBlobUrl} controls className="w-full max-w-sm" />
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center gap-4 p-8 text-center">
+                                    <File className="w-16 h-16 text-muted-foreground" />
+                                    <p className="font-medium text-foreground">{previewFile.name}</p>
+                                    <p className="text-sm text-muted-foreground">Preview not available for this file type.</p>
+                                    <a
+                                        href={previewBlobUrl}
+                                        download={previewFile.name}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download to view
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     </div>
-                    <div className="flex-1 bg-white overflow-hidden flex items-center justify-center p-4">
-                        {previewFile?.type.includes('image') ? (
-                            <img
-                                src={previewFile.url}
-                                alt={previewFile.name}
-                                className="max-w-full max-h-full object-contain rounded shadow-lg"
-                            />
-                        ) : (
-                            <iframe
-                                src={previewFile?.url}
-                                className="w-full h-full rounded border-0 shadow-sm bg-gray-50"
-                                title={previewFile?.name}
-                            />
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+                </div>
+            )}
         </div>
     );
 }
