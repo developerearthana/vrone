@@ -15,12 +15,13 @@ export default function BankingPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newAccount, setNewAccount] = useState({});
 
-    // Fetch Accounts
     async function fetchAccounts() {
         setLoading(true);
-        const data = await getBankAccounts();
-        setAccounts(data);
-        setLoading(false);
+        try {
+            const data = await getBankAccounts();
+            setAccounts(data || []);
+        } catch { toast({ title: 'Failed to load accounts', variant: 'destructive' }); }
+        finally { setLoading(false); }
     }
 
     useEffect(() => {

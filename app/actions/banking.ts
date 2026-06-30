@@ -49,12 +49,17 @@ export const createBankAccount = createAction(BankAccountSchema, async (data) =>
 });
 
 export const getBankAccounts = async () => {
-    await connectToDatabase();
-    const accounts = await BankAccount.find({}).sort({ createdAt: -1 }).lean();
-    return JSON.parse(JSON.stringify(accounts));
+    try {
+        await connectToDatabase();
+        const accounts = await BankAccount.find({}).sort({ createdAt: -1 }).lean();
+        return JSON.parse(JSON.stringify(accounts));
+    } catch {
+        return [];
+    }
 };
 
 export const getFinancialSummary = async () => {
+  try {
     await connectToDatabase();
 
     const now = new Date();
@@ -107,6 +112,11 @@ export const getFinancialSummary = async () => {
         })),
         bankCount: accounts.length,
     }));
+  } catch {
+    return { cashOnHand: 0, totalIncome: 0, totalExpenses: 0, netProfit: 0,
+             incomeChange: null, expenseChange: null, profitChange: null,
+             recentTransactions: [], bankCount: 0 };
+  }
 };
 
 export const recordBankTransaction = createJSONAction(TransactionSchema, async (data) => {

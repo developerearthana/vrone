@@ -54,12 +54,16 @@ export async function getDashboardUsers() {
 }
 
 export async function getAllUsers() {
-    await connectToDatabase();
-    const users = await User.find({})
-        .select('name role dept image jobTitle email personalEmail status phone')
-        .sort({ name: 1 })
-        .lean();
-    return JSON.parse(JSON.stringify(users));
+    try {
+        await connectToDatabase();
+        const users = await User.find({})
+            .select('name role dept image jobTitle email companyEmails status phone')
+            .sort({ name: 1 })
+            .lean();
+        return JSON.parse(JSON.stringify(users));
+    } catch {
+        return [];
+    }
 }
 
 import bcrypt from "bcryptjs";
@@ -70,7 +74,7 @@ const UserSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Name is required"),
     email: z.string().email("Invalid email address"),
-    personalEmail: z.string().email("Invalid personal email").optional().or(z.literal('')),
+    companyEmails: z.array(z.string().email()).optional().default([]),
     role: z.string().min(1, "Role is required"),
     dept: z.string().optional(),
     phone: z.string().optional(),
@@ -78,6 +82,7 @@ const UserSchema = z.object({
     status: z.enum(['Active', 'Inactive', 'On Leave']).default('Active'),
     password: z.string().optional().or(z.literal('')),
     customRole: z.string().optional(),
+    image: z.string().optional(),
 });
 
 
@@ -93,14 +98,15 @@ export const createUser = createJSONAction(UserSchema, async (data) => {
     const newUser = await User.create({
         name: data.name,
         email: data.email,
-        personalEmail: data.personalEmail || undefined,
+        companyEmails: data.companyEmails || [],
         password: hashedPassword,
         role: data.role,
-        dept: data.dept || 'General',
+        dept: data.dept || '',
         jobTitle: data.jobTitle,
         status: data.status,
         provider: 'credentials',
-        customRole: data.customRole || undefined
+        customRole: data.customRole || undefined,
+        image: data.image || undefined,
     });
 
     revalidatePath("/masters/users");
@@ -114,14 +120,15 @@ export const updateUser = createJSONAction(UserSchema, async (data) => {
     const updateData: any = {
         name: data.name,
         email: data.email,
-        personalEmail: data.personalEmail || undefined,
+        companyEmails: data.companyEmails || [],
         role: data.role,
-        dept: data.dept,
+        dept: data.dept || '',
         phone: data.phone,
         jobTitle: data.jobTitle,
         status: data.status,
         customRole: data.customRole || undefined,
     };
+    if (data.image !== undefined) updateData.image = data.image;
     if (data.password) {
         updateData.password = await bcrypt.hash(data.password, 10);
     }

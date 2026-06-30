@@ -6,9 +6,13 @@ import { revalidatePath } from "next/cache";
 import { sanitizeObject } from "@/lib/sanitize";
 
 export async function getCategories() {
-    await connectToDatabase();
-    const categories = await ExpenseCategory.find({}).sort({ name: 1 }).lean();
-    return JSON.parse(JSON.stringify(categories));
+    try {
+        await connectToDatabase();
+        const categories = await ExpenseCategory.find({}).sort({ name: 1 }).lean();
+        return JSON.parse(JSON.stringify(categories));
+    } catch {
+        return [];
+    }
 }
 
 export async function createCategory(data: any) {

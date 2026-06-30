@@ -9,7 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { format, isPast } from 'date-fns';
+import { format, isPast, isValid } from 'date-fns';
+
+function safeFormat(value: string | undefined | null, fmt: string, fallback = '—'): string {
+    if (!value) return fallback;
+    const d = new Date(value);
+    return isValid(d) ? format(d, fmt) : fallback;
+}
 import { cn } from '@/lib/utils';
 import { getMyKPIAssignments, updateKPIProgress, markKPIComplete } from '@/app/actions/kpi-assignments';
 
@@ -262,7 +268,8 @@ export default function MyKPIs() {
             ) : (
                 <div className="grid md:grid-cols-2 gap-4">
                     {filtered.map(kpi => {
-                        const overdue = kpi.status !== 'Completed' && isPast(new Date(kpi.dueDate));
+                        const dueD = kpi.dueDate ? new Date(kpi.dueDate) : null;
+                        const overdue = kpi.status !== 'Completed' && !!dueD && isValid(dueD) && isPast(dueD);
                         const isCompleted = kpi.status === 'Completed';
                         return (
                             <div
@@ -316,7 +323,7 @@ export default function MyKPIs() {
                                             {kpi.assignedBy ? `By ${kpi.assignedBy.name}` : ''}
                                         </span>
                                         <span className={cn('text-[10px] font-bold', overdue ? 'text-red-500' : 'text-gray-400')}>
-                                            Due: {format(new Date(kpi.dueDate), 'dd MMM yyyy')}
+                                            Due: {safeFormat(kpi.dueDate, 'dd MMM yyyy')}
                                             {overdue && !isCompleted && ' ⚠️ Overdue'}
                                         </span>
                                     </div>
@@ -380,7 +387,7 @@ export default function MyKPIs() {
                                 {isCompleted && (
                                     <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 mt-2">
                                         <CheckCircle2 className="w-3.5 h-3.5" />
-                                        Completed {kpi.completedAt ? `on ${format(new Date(kpi.completedAt), 'dd MMM yyyy')}` : ''}
+                                        Completed {kpi.completedAt ? `on ${safeFormat(kpi.completedAt, 'dd MMM yyyy')}` : ''}
                                     </div>
                                 )}
                             </div>

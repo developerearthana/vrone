@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import connectToDatabase from '@/lib/db';
 import Payroll from '@/models/Payroll';
 import User from '@/models/User';
+import Employee from '@/models/Employee';
 import LeaveRequest from '@/models/LeaveRequest';
 import Attendance from '@/models/Attendance';
 import { sanitizeObject } from '@/lib/sanitize';
@@ -14,8 +15,8 @@ export class HRMService {
         today.setHours(0, 0, 0, 0);
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-        const [activeUsers, onLeaveUsers, checkedInRecords, newJoinersList] = await Promise.all([
-            User.find({ status: 'Active' }, 'name email role image dept'),
+        const [activeEmployees, onLeaveUsers, checkedInRecords, newJoinersList] = await Promise.all([
+            Employee.find({ status: 'Active' }, 'name email image dept jobTitle employeeId'),
             LeaveRequest.find({
                 status: 'Approved',
                 startDate: { $lte: new Date() },
@@ -25,24 +26,24 @@ export class HRMService {
                 date: { $gte: today },
                 $or: [{ status: 'Present' }, { status: 'Half-Day' }]
             }).populate('userId', 'name email role image dept'),
-            User.find({
+            Employee.find({
                 createdAt: { $gte: startOfMonth }
-            }, 'name email role image dept')
+            }, 'name email image dept jobTitle employeeId')
         ]);
 
         const attendanceMap = new Map();
         checkedInRecords.forEach((a: any) => { if (a.userId) attendanceMap.set(a.userId._id?.toString(), a) });
 
-        const absenteesList = activeUsers.filter(user => !attendanceMap.has(user._id.toString()));
+        const absenteesList = activeEmployees.filter(emp => !attendanceMap.has(emp._id.toString()));
         const checkedInList = checkedInRecords.map((a: any) => a.userId).filter(Boolean);
 
         return JSON.parse(JSON.stringify({
-            totalEmployees: activeUsers.length,
+            totalEmployees: activeEmployees.length,
             onLeaveToday: onLeaveUsers.length,
             checkedInToday: checkedInList.length,
             newJoiners: newJoinersList.length,
             lists: {
-                employees: activeUsers,
+                employees: activeEmployees,
                 absentees: absenteesList,
                 checkedIn: checkedInList,
                 newJoiners: newJoinersList
@@ -192,13 +193,12 @@ export class HRMService {
         return JSON.parse(JSON.stringify(records));
     }
 
-    async punchIn(userId: string, workMode: 'Office' | 'Remote' = 'Office') {
+    async punchIn(userId: string, workMode: 'Office' | 'Remote' = 'Office', location?: { lat: number; lng: number }) {
         await connectToDatabase();
 
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        // Check if already has an open session (punched in but not yet out)
         const activeRecord = await Attendance.findOne({
             userId,
             date: { $gte: today },
@@ -208,17 +208,58 @@ export class HRMService {
 
         if (activeRecord) throw new Error('Already punched in. Please punch out first.');
 
-        // Use upsert to gracefully handle unique index on {userId, date}
+        const update: any = {
+            punchIn: now,
+            status: workMode === 'Remote' ? 'WFH' : 'Present',
+            workMode,
+            punchOut: null,
+        };
+        if (location?.lat && location?.lng) update.location = location;
+
         const record = await Attendance.findOneAndUpdate(
             { userId, date: today },
-            {
-                $set: {
-                    punchIn: now,
-                    status: workMode === 'Remote' ? 'WFH' : 'Present',
-                    workMode,
-                    punchOut: null,
-                }
-            },
+            { $set: update },
+            { upsert: true, new: true }
+        );
+
+        return JSON.parse(JSON.stringify(record));
+    }
+
+    async adminAdjustAttendance(data: {
+        userId: string;
+        date: string;
+        punchIn?: string;
+        punchOut?: string;
+        status: string;
+        workMode: string;
+        remarks?: string;
+    }) {
+        await connectToDatabase();
+
+        const date = new Date(data.date);
+        date.setHours(0, 0, 0, 0);
+
+        const punchInDate = data.punchIn ? new Date(data.punchIn) : undefined;
+        const punchOutDate = data.punchOut ? new Date(data.punchOut) : undefined;
+
+        let hoursWorked = 0;
+        if (punchInDate && punchOutDate) {
+            hoursWorked = Math.round((punchOutDate.getTime() - punchInDate.getTime()) / (1000 * 60 * 60) * 100) / 100;
+        }
+
+        const update: any = {
+            status: data.status,
+            workMode: data.workMode,
+            adminAdjusted: true,
+            hoursWorked,
+        };
+        if (punchInDate) update.punchIn = punchInDate;
+        if (punchOutDate) update.punchOut = punchOutDate;
+        if (data.remarks) update.remarks = data.remarks;
+
+        const record = await Attendance.findOneAndUpdate(
+            { userId: data.userId, date },
+            { $set: update },
             { upsert: true, new: true }
         );
 

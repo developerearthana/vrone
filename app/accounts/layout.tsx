@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Wallet, Receipt, FileBarChart, Building2, Settings, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Receipt, Building2, FileBarChart, ShieldCheck, Settings } from 'lucide-react';
 
-const accountsLinks = [
-    { name: 'Dashboard', href: '/accounts', icon: LayoutDashboard },
+const links = [
+    { name: 'Dashboard', href: '/accounts', icon: LayoutDashboard, exact: true },
     { name: 'Transactions', href: '/accounts/transactions', icon: Receipt },
     { name: 'Bank Accounts', href: '/accounts/banking', icon: Building2 },
     { name: 'Reports', href: '/accounts/reports', icon: FileBarChart },
@@ -15,37 +15,34 @@ const accountsLinks = [
     { name: 'Settings', href: '/accounts/settings', icon: Settings },
 ];
 
-export default function AccountsLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function AccountsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-
     return (
         <div className="flex flex-col h-full gap-6">
-            <div className="flex items-center gap-6 border-b pb-4 overflow-x-auto">
-                {accountsLinks.map((link) => {
+            <nav className="flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar">
+                {links.map(link => {
                     const Icon = link.icon;
-                    const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
+                    const isActive = link.exact
+                        ? pathname === link.href
+                        : pathname === link.href || pathname?.startsWith(link.href + '/');
                     return (
                         <Link
-                            key={link.name}
+                            key={link.href}
                             href={link.href}
                             className={cn(
-                                "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
-                                isActive ? "text-primary" : "text-muted-foreground"
+                                "flex items-center gap-2 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150 -mb-px",
+                                isActive
+                                    ? "border-primary text-primary"
+                                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                             )}
                         >
-                            <Icon className="w-4 h-4" />
+                            <Icon className="w-3.5 h-3.5 shrink-0" />
                             {link.name}
                         </Link>
                     );
                 })}
-            </div>
-            <div className="flex-1 h-full min-h-0 overflow-y-auto">
-                {children}
-            </div>
+            </nav>
+            <div className="flex-1 h-full min-h-0 overflow-y-auto">{children}</div>
         </div>
     );
 }

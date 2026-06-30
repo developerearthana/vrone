@@ -288,7 +288,7 @@ export const seedDefaults = async () => {
         if (!subId) throw new Error("Could not create/find subsidiary");
 
         // 3. Departments
-        const deptNames = ["Parent Company", "General Department", "Human Resources", "Finance", "Sales", "IT"];
+        const deptNames = ["Administration", "Human Resources", "Finance", "Sales", "IT"];
         const existingDepts = await Department.find({ subsidiaryId: subId });
 
         const createdDepts = [];

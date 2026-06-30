@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { ShieldCheck, Activity, Users, Settings } from 'lucide-react';
+import { ShieldCheck, Activity, Users, Settings, CalendarRange } from 'lucide-react';
 
 const adminLinks = [
     { name: 'Overview', href: '/dashboards/super-admin', icon: ShieldCheck },
+    { name: 'Company Calendar', href: '/dashboards/super-admin/calendar', icon: CalendarRange },
     { name: 'System Health', href: '/dashboards/super-admin/health', icon: Activity },
     { name: 'User Types', href: '/masters/usertypes', icon: Users },
     { name: 'Settings', href: '/dashboards/super-admin/settings', icon: Settings },

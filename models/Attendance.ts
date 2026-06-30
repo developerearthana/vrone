@@ -10,6 +10,8 @@ export interface IAttendance extends Document {
     hoursWorked?: number;
     overtime?: number;
     remarks?: string;
+    location?: { lat: number; lng: number; address?: string };
+    adminAdjusted?: boolean;
 }
 
 const AttendanceSchema: Schema = new Schema({
@@ -29,7 +31,13 @@ const AttendanceSchema: Schema = new Schema({
     },
     hoursWorked: { type: Number, default: 0 },
     overtime: { type: Number, default: 0 },
-    remarks: { type: String }
+    remarks: { type: String },
+    location: {
+        lat: { type: Number },
+        lng: { type: Number },
+        address: { type: String },
+    },
+    adminAdjusted: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // Compound index to ensure one attendance record per user per day

@@ -13,7 +13,7 @@ import {
     Package,
     UserPlus,
     Settings,
-    BarChart3,
+    TrendingUp,
     Briefcase,
     ClipboardList,
     Monitor,
@@ -21,7 +21,7 @@ import {
     ChevronLeft,
     ChevronRight,
     UserCheck,
-    CalendarDays
+    CalendarDays,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/ui/logo"
@@ -32,7 +32,7 @@ const textStyle = "text-sm font-medium tracking-wide";
 export const navItems = [
     { name: "Master Dashboard", href: "/", icon: LayoutDashboard, permission: 'dashboard' },
     { name: "Activity", href: "/activity", icon: Calendar, permission: 'activity' },
-    { name: "Goals", href: "/goals", icon: BarChart3, permission: 'goals' },
+    { name: "Performance", href: "/goals", icon: TrendingUp, permission: 'goals' },
     { name: "Contacts", href: "/contacts", icon: Users, permission: 'contacts' },
     { name: "Sales", href: "/sales", icon: DollarSign, permission: 'sales' },
     { name: "Marketing", href: "/marketing", icon: Megaphone, permission: 'marketing' },
@@ -41,7 +41,7 @@ export const navItems = [
     { name: "Accounting", href: "/accounts", icon: BookOpen, permission: 'accounting' },
     { name: "Purchase", href: "/purchase", icon: ShoppingCart, permission: 'purchase' },
     { name: "Inventory", href: "/inventory", icon: Package, permission: 'inventory' },
-    { name: "HRM Admin", href: "/hrm", icon: UserPlus, permission: 'hrm' },
+    { name: "HRM", href: "/hrm", icon: UserPlus, permission: 'hrm' },
     { name: "Attendance", href: "/hrm/attendance", icon: UserCheck, permission: 'basic-hrm' },
     { name: "Leave", href: "/hrm/leave", icon: CalendarDays, permission: 'basic-hrm' },
     { name: "Assets", href: "/assets", icon: Monitor, permission: 'assets' },

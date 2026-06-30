@@ -14,8 +14,8 @@ export default function KPIBoard() {
     useEffect(() => {
         const loadData = async () => {
             const [eRes, gRes] = await Promise.all([getKPIEntries(), getGoals()]);
-            if (eRes?.success) setEntries(eRes.data);
-            if (gRes?.success) setGoals(gRes.data);
+            if (eRes?.success) setEntries(eRes.data ?? []);
+            if (gRes?.success) setGoals(gRes.data ?? []);
         };
         loadData();
     }, []);

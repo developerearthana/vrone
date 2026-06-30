@@ -20,8 +20,10 @@ export default function AccountsSettings() {
     const [newFY, setNewFY] = useState({ name: "", startDate: "", endDate: "" });
 
     const fetchYears = async () => {
-        const data = await getFiscalYears();
-        setYears(data);
+        try {
+            const data = await getFiscalYears();
+            setYears(data || []);
+        } catch { toast.error('Failed to load fiscal years'); }
     };
 
     useEffect(() => {

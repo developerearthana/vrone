@@ -5,21 +5,21 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard, Users, UserCheck, Banknote,
-    CalendarDays, Briefcase, ClipboardList, Shield,
+    CalendarDays, Briefcase, ClipboardList, Shield, CalendarRange,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
 const ALL_HRM_LINKS = [
-    { name: 'Dashboard', href: '/hrm', icon: LayoutDashboard, adminOnly: true },
-    { name: 'Employees', href: '/hrm/employees', icon: Users, adminOnly: true },
-    { name: 'Attendance', href: '/hrm/attendance', icon: UserCheck, adminOnly: false },
-    { name: 'Attendance Report', href: '/hrm/attendance-report', icon: ClipboardList, adminOnly: true },
-    { name: 'Payroll', href: '/hrm/payroll', icon: Banknote, adminOnly: true },
-    { name: 'Leave', href: '/hrm/leave', icon: CalendarDays, adminOnly: false },
-    { name: 'Staff Access', href: '/hrm/staff-access', icon: Shield, adminOnly: true },
-    { name: 'Documents', href: '/hrm/documents', icon: Briefcase, adminOnly: true },
-    { name: 'Interview', href: '/hrm/interview', icon: Users, adminOnly: true },
+    { name: 'Dashboard', href: '/hrm', icon: LayoutDashboard, adminOnly: true, staffOnly: false },
+    { name: 'Employees', href: '/hrm/employees', icon: Users, adminOnly: true, staffOnly: false },
+    { name: 'Attendance', href: '/hrm/attendance', icon: UserCheck, adminOnly: false, staffOnly: true },
+    { name: 'Attendance Report', href: '/hrm/attendance-report', icon: ClipboardList, adminOnly: true, staffOnly: false },
+    { name: 'Payroll', href: '/hrm/payroll', icon: Banknote, adminOnly: true, staffOnly: false },
+    { name: 'Requests', href: '/hrm/leave', icon: CalendarDays, adminOnly: false, staffOnly: false },
+    { name: 'Staff Access', href: '/hrm/staff-access', icon: Shield, adminOnly: true, staffOnly: false },
+    { name: 'Documents', href: '/hrm/documents', icon: Briefcase, adminOnly: true, staffOnly: false },
+    { name: 'Interview', href: '/hrm/interview', icon: Users, adminOnly: true, staffOnly: false },
 ];
 
 const STAFF_ALLOWED = ['/hrm/attendance', '/hrm/leave'];
@@ -57,7 +57,10 @@ export default function HRMLayoutClient({ children, role: initialRole }: { child
         }
     }, [pathname, currentRole, router]);
 
-    const visibleLinks = ALL_HRM_LINKS.filter(link => !link.adminOnly || confirmedAdmin);
+    const visibleLinks = ALL_HRM_LINKS.filter(link => {
+        if (link.staffOnly && confirmedAdmin) return false;
+        return !link.adminOnly || confirmedAdmin;
+    });
 
     // If no role yet
     if (!currentRole && !mounted) {
@@ -71,41 +74,41 @@ export default function HRMLayoutClient({ children, role: initialRole }: { child
 
     return (
         <div className="flex flex-col h-full gap-6">
-            <div className="flex items-center gap-6 border-b pb-4 overflow-x-auto">
-                <div 
-                    className={cn(
-                        "flex items-center gap-6 transition-opacity duration-300", 
-                        mounted ? "opacity-100" : "opacity-0"
-                    )}
-                >
-                    {visibleLinks.map((link) => {
-                        const Icon = link.icon;
-                        const isActive =
-                            pathname === link.href ||
-                            (link.href !== '/hrm' && pathname.startsWith(link.href));
-                        return (
-                            <Link
-                                key={link.name}
-                                href={link.href}
-                                className={cn(
-                                    'flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary whitespace-nowrap',
-                                    isActive ? 'text-primary' : 'text-muted-foreground'
-                                )}
-                            >
-                                <Icon className="w-4 h-4" />
-                                {link.name}
-                            </Link>
-                        );
-                    })}
-                </div>
-            </div>
+            <nav
+                className={cn(
+                    "flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar transition-opacity duration-300",
+                    mounted ? "opacity-100" : "opacity-0"
+                )}
+            >
+                {visibleLinks.map((link) => {
+                    const Icon = link.icon;
+                    const isActive =
+                        pathname === link.href ||
+                        (link.href !== '/hrm' && pathname.startsWith(link.href));
+                    return (
+                        <Link
+                            key={link.name}
+                            href={link.href}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150 -mb-px",
+                                isActive
+                                    ? "border-primary text-primary"
+                                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                            )}
+                        >
+                            <Icon className="w-3.5 h-3.5 shrink-0" />
+                            {link.name}
+                        </Link>
+                    );
+                })}
+            </nav>
 
             <div className="flex-1 h-full min-h-0 overflow-y-auto">
-                <div 
+                <div
                     className={cn(
                         "h-full transition-opacity duration-300",
                         (confirmedStaff && !STAFF_ALLOWED.some(p => pathname === p || pathname.startsWith(p + '/'))) || (!currentRole && mounted)
-                            ? "opacity-0 pointer-events-none select-none" 
+                            ? "opacity-0 pointer-events-none select-none"
                             : "opacity-100"
                     )}
                 >

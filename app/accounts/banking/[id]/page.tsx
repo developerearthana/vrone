@@ -27,10 +27,10 @@ export default function BankAccountDetail({ params }: { params: Promise<{ id: st
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        getAccountDetails(resolvedParams.id).then(data => {
-            setAccount(data);
-            setLoading(false);
-        });
+        getAccountDetails(resolvedParams.id)
+            .then(data => { setAccount(data ?? null); })
+            .catch(() => {})
+            .finally(() => setLoading(false));
     }, [resolvedParams.id]);
 
     if (loading) return <div className="p-8 text-center">Loading Account Details...</div>;

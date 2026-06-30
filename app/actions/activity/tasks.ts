@@ -74,7 +74,6 @@ export async function getTasks(filter: any = {}) {
         const session = await auth();
         if (!session?.user?.id) throw new Error('Unauthorized');
 
-        // By default show tasks created by user OR assigned to user
         const query = {
             $or: [
                 { createdBy: session.user.id },
@@ -84,6 +83,18 @@ export async function getTasks(filter: any = {}) {
         };
 
         const tasks = await Task.find(query).sort({ createdAt: -1 });
+        return { success: true, data: JSON.parse(JSON.stringify(tasks)) };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getTeamTasks(teamId: string) {
+    try {
+        await connectToDatabase();
+        const session = await auth();
+        if (!session?.user?.id) throw new Error('Unauthorized');
+        const tasks = await Task.find({ teamId, status: { $ne: 'Archived' } }).sort({ createdAt: -1 });
         return { success: true, data: JSON.parse(JSON.stringify(tasks)) };
     } catch (error: any) {
         return { success: false, error: error.message };

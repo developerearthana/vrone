@@ -41,9 +41,13 @@ export const createFiscalYear = createJSONAction(FiscalYearSchema, async (data) 
 });
 
 export const getFiscalYears = async () => {
-    await connectToDatabase();
-    const years = await FiscalYear.find({}).sort({ startDate: -1 }).lean();
-    return JSON.parse(JSON.stringify(years));
+    try {
+        await connectToDatabase();
+        const years = await FiscalYear.find({}).sort({ startDate: -1 }).lean();
+        return JSON.parse(JSON.stringify(years));
+    } catch {
+        return [];
+    }
 };
 
 export const setCurrentFiscalYear = createJSONAction(z.object({ id: z.string() }), async ({ id }) => {

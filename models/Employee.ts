@@ -3,16 +3,18 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IEmployee extends Document {
     // Personal Info
     name: string;
+    initial?: string;
     employeeId?: string;
     email?: string;
-    employeeCategory?: string;
     jobTitle?: string;
     dept?: string;
     phone?: string;
+    fatherName?: string;
     alternatePhone?: string;
     address?: string;
     dateOfBirth?: Date;
     gender?: string;
+    bloodGroup?: string;
     maritalStatus?: string;
     image?: string;
     status: 'Active' | 'Inactive' | 'On Leave';
@@ -37,16 +39,18 @@ export interface IEmployee extends Document {
 const EmployeeSchema: Schema = new Schema(
     {
         name: { type: String, required: true },
+        initial: { type: String },
         employeeId: { type: String },
         email: { type: String },
-        employeeCategory: { type: String },
         jobTitle: { type: String },
         dept: { type: String, default: 'General' },
         phone: { type: String },
+        fatherName: { type: String },
         alternatePhone: { type: String },
         address: { type: String },
         dateOfBirth: { type: Date },
         gender: { type: String, enum: ['Male', 'Female', 'Other', 'Prefer not to say'] },
+        bloodGroup: { type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },
         maritalStatus: { type: String, enum: ['Single', 'Married', 'Divorced', 'Widowed'] },
         image: { type: String },
         status: { type: String, enum: ['Active', 'Inactive', 'On Leave'], default: 'Active' },

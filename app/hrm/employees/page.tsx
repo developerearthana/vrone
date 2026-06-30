@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Plus, Search, Filter, Mail, Phone, Trash2, User as UserIcon, Loader2, MoreVertical, UserCheck, UserX, ArrowLeft, ArrowRight, Check, Edit } from 'lucide-react';
+import { Plus, Search, Mail, Phone, Trash2, User as UserIcon, Loader2, MoreVertical, UserCheck, UserX, ArrowLeft, ArrowRight, Check, Edit, CreditCard, Printer, X } from 'lucide-react';
 import { PageWrapper, CardWrapper } from '@/components/ui/page-wrapper';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getAllUsers } from '@/app/actions/user';
-import { getDepartments } from '@/app/actions/organization';
+import { getDepartments, getCompany } from '@/app/actions/organization';
 import { createEmployee, updateEmployee, getEmployees, deleteEmployee, toggleEmployeeStatus } from '@/app/actions/employee';
 import { getMasters } from '@/app/actions/masters';
 import { toast } from 'sonner';
@@ -16,12 +16,32 @@ import { ImageUpload } from '@/components/ui/image-upload';
 interface Employee {
     _id: string;
     name: string;
+    initial?: string;
     dept?: string;
     email?: string;
     phone?: string;
     jobTitle?: string;
-    employeeCategory?: string;
     employeeId?: string;
+    image?: string;
+    bloodGroup?: string;
+    fatherName?: string;
+    alternatePhone?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    maritalStatus?: string;
+    address?: string;
+    reportingManager?: string;
+    probationEndDate?: string;
+    noticePeriod?: number;
+    bankDetails?: {
+        accountType?: string;
+        accountHolderName?: string;
+        bankName?: string;
+        accountNumber?: string;
+        upiId?: string;
+        ifscCode?: string;
+        bankBranch?: string;
+    };
     status: 'Active' | 'Inactive' | 'On Leave';
     gradient?: string;
 }
@@ -29,20 +49,22 @@ interface Employee {
 interface Department { _id: string; name: string; }
 
 const gradients = [
-    "from-blue-400 to-indigo-500",
-    "from-emerald-400 to-teal-500",
-    "from-orange-400 to-red-500",
-    "from-purple-400 to-fuchsia-500",
-    "from-cyan-400 to-sky-500",
+    "from-orange-600 to-amber-700",
+    "from-emerald-600 to-green-700",
+    "from-amber-500 to-yellow-600",
+    "from-stone-500 to-stone-700",
+    "from-sky-600 to-blue-700",
 ];
 
 const STEPS = ['Personal Info', 'Other Details'];
 const DRAFT_KEY = 'hrm_employee_draft';
 
 const emptyForm = {
-    image: '', employeeCategory: '', jobTitle: '', dept: '', employeeId: '',
-    name: '', email: '', phone: '', alternatePhone: '', address: '', dateOfBirth: '', gender: '', maritalStatus: '',
+    image: '', initial: '', jobTitle: '', dept: '', employeeId: '',
+    name: '', email: '', phone: '', fatherName: '', alternatePhone: '', address: '',
+    dateOfBirth: '', gender: '', bloodGroup: '', maritalStatus: '',
     reportingTo: '', probationEndDate: '', noticePeriod: '',
+    paymentMode: 'bank' as 'upi' | 'bank',
     accountType: '', accountHolderName: '', bankName: '', accountNumber: '', upiId: '', ifscCode: '', bankBranch: '',
 };
 
@@ -50,7 +72,9 @@ export default function EmployeesPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
-    const [empCategories, setEmpCategories] = useState<string[]>([]);
+    const [jobTitles, setJobTitles] = useState<string[]>([]);
+    const [company, setCompany] = useState<any>(null);
+    const [showIdCard, setShowIdCard] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -84,16 +108,18 @@ export default function EmployeesPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [empData, usersData, deptData, catRes] = await Promise.all([
+            const [empData, usersData, deptData, titlesRes, companyData] = await Promise.all([
                 getEmployees(),
                 getAllUsers(),
                 getDepartments(),
-                getMasters('EmployeeCategory'),
+                getMasters('JobTitle'),
+                getCompany(),
             ]);
             setEmployees((empData || []).map((e: any, i: number) => ({ ...e, gradient: gradients[i % gradients.length] })));
             setAllUsers(usersData || []);
             setDepartments(deptData || []);
-            if (catRes.success && catRes.data) setEmpCategories(catRes.data.map((c: any) => c.label));
+            if (titlesRes.success && titlesRes.data) setJobTitles(titlesRes.data.map((t: any) => t.label));
+            if (companyData) setCompany(companyData);
         } catch { toast.error("Failed to load data"); }
         finally { setLoading(false); }
     };
@@ -121,23 +147,28 @@ export default function EmployeesPage() {
 
     const openEdit = (emp: any) => {
         setEditingEmployee(emp);
+        const hasUpi = !!emp.bankDetails?.upiId;
+        const hasBank = !!(emp.bankDetails?.bankName || emp.bankDetails?.accountNumber);
         setFormData({
             image: emp.image || '',
-            employeeCategory: emp.employeeCategory || '',
+            initial: emp.initial || '',
             jobTitle: emp.jobTitle || '',
             dept: emp.dept || '',
             employeeId: emp.employeeId || '',
             name: emp.name || '',
             email: emp.email || '',
             phone: emp.phone || '',
+            fatherName: emp.fatherName || '',
             alternatePhone: emp.alternatePhone || '',
             address: emp.address || '',
             dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.substring(0, 10) : '',
             gender: emp.gender || '',
+            bloodGroup: emp.bloodGroup || '',
             maritalStatus: emp.maritalStatus || '',
             reportingTo: emp.reportingManager || '',
             probationEndDate: emp.probationEndDate ? emp.probationEndDate.substring(0, 10) : '',
             noticePeriod: emp.noticePeriod ? String(emp.noticePeriod) : '',
+            paymentMode: hasUpi && !hasBank ? 'upi' : 'bank',
             accountType: emp.bankDetails?.accountType || '',
             accountHolderName: emp.bankDetails?.accountHolderName || '',
             bankName: emp.bankDetails?.bankName || '',
@@ -187,6 +218,14 @@ export default function EmployeesPage() {
                 ...formData,
                 reportingManager: formData.reportingTo,
                 noticePeriod: formData.noticePeriod ? Number(formData.noticePeriod) : undefined,
+                // Clear payment fields not used by chosen mode
+                upiId: formData.paymentMode === 'upi' ? formData.upiId : '',
+                accountNumber: formData.paymentMode === 'bank' ? formData.accountNumber : '',
+                bankName: formData.paymentMode === 'bank' ? formData.bankName : '',
+                accountHolderName: formData.paymentMode === 'bank' ? formData.accountHolderName : '',
+                ifscCode: formData.paymentMode === 'bank' ? formData.ifscCode : '',
+                bankBranch: formData.paymentMode === 'bank' ? formData.bankBranch : '',
+                accountType: formData.paymentMode === 'bank' ? formData.accountType : '',
             };
             const res = editingEmployee
                 ? await updateEmployee(editingEmployee._id, payload)
@@ -308,27 +347,34 @@ export default function EmployeesPage() {
                                 {/* Two-column layout: fields left, photo right */}
                                 <div className="flex flex-col lg:flex-row gap-6">
                                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                        {field("Full Name", true,
-                                            <input className={inputCls} value={formData.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Arjun Sharma" />,
-                                            errors.name
-                                        )}
+                                        {/* Name + Initial side by side */}
+                                        <div className="sm:col-span-2 grid grid-cols-3 gap-3">
+                                            <div className="col-span-2">
+                                                {field("Full Name", true,
+                                                    <input className={inputCls} value={formData.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Arjun Sharma" />,
+                                                    errors.name
+                                                )}
+                                            </div>
+                                            <div>
+                                                {field("Initial", false,
+                                                    <input className={inputCls} value={formData.initial} onChange={e => set('initial', e.target.value)} placeholder="e.g. S." />
+                                                )}
+                                            </div>
+                                        </div>
                                         {field("Employee ID", false,
                                             <input className={inputCls} value={formData.employeeId} onChange={e => set('employeeId', e.target.value)} placeholder="e.g. EMP-001" />
                                         )}
                                         {field("Email Address", false,
                                             <input type="email" className={inputCls} value={formData.email} onChange={e => set('email', e.target.value)} placeholder="arjun@example.com" />
                                         )}
-                                        {field("Employee Category", false,
-                                            <select className={selectCls} value={formData.employeeCategory} onChange={e => set('employeeCategory', e.target.value)}>
-                                                <option value="">Select Category</option>
-                                                {empCategories.length > 0
-                                                    ? empCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)
-                                                    : <option disabled>No categories — add in Masters</option>
+                                        {field("Job Title / Designation", false,
+                                            <select className={selectCls} value={formData.jobTitle} onChange={e => set('jobTitle', e.target.value)}>
+                                                <option value="">Select Job Title</option>
+                                                {jobTitles.length > 0
+                                                    ? jobTitles.map(t => <option key={t} value={t}>{t}</option>)
+                                                    : <option disabled>No titles — add in Masters › Job Titles</option>
                                                 }
                                             </select>
-                                        )}
-                                        {field("Job Title", false,
-                                            <input className={inputCls} value={formData.jobTitle} onChange={e => set('jobTitle', e.target.value)} placeholder="e.g. Senior Developer" />
                                         )}
                                         {field("Department", false,
                                             <select className={selectCls} value={formData.dept} onChange={e => set('dept', e.target.value)}>
@@ -339,19 +385,32 @@ export default function EmployeesPage() {
                                         {field("Contact Number", false,
                                             <input className={inputCls} value={formData.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 98765 43210" />
                                         )}
-                                        {field("Alternate Contact Number", false,
+                                        {field("Father / Guardian Name", false,
+                                            <input className={inputCls} value={formData.fatherName} onChange={e => set('fatherName', e.target.value)} placeholder="e.g. Ramesh Sharma" />
+                                        )}
+                                        {field("Father / Guardian Contact", false,
                                             <input className={inputCls} value={formData.alternatePhone} onChange={e => set('alternatePhone', e.target.value)} placeholder="+91 98765 43210" />
                                         )}
-                                        {field("Date of Birth", false,
+                                        {/* DOB + computed age */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date of Birth</label>
                                             <input
-                                                type="text"
+                                                type="date"
                                                 className={inputCls}
                                                 value={formData.dateOfBirth}
                                                 onChange={e => set('dateOfBirth', e.target.value)}
-                                                placeholder="DD-MM-YYYY"
-                                                onFocus={e => { if (!formData.dateOfBirth) e.target.type = 'date'; }}
-                                                onBlur={e => { if (!formData.dateOfBirth) e.target.type = 'text'; }}
                                             />
+                                            {formData.dateOfBirth && (() => {
+                                                const dob = new Date(formData.dateOfBirth);
+                                                const age = Math.floor((Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                                                return age > 0 ? <p className="text-xs text-primary font-semibold">Age: {age} years</p> : null;
+                                            })()}
+                                        </div>
+                                        {field("Blood Group", false,
+                                            <select className={selectCls} value={formData.bloodGroup} onChange={e => set('bloodGroup', e.target.value)}>
+                                                <option value="">Select Blood Group</option>
+                                                {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                                            </select>
                                         )}
                                         {field("Gender", false,
                                             <select className={selectCls} value={formData.gender} onChange={e => set('gender', e.target.value)}>
@@ -422,38 +481,61 @@ export default function EmployeesPage() {
                                     )}
                                 </div>
 
-                                {/* Divider */}
+                                {/* Payment Section */}
                                 <div className="border-t border-border pt-6">
-                                    <h2 className="text-base font-bold text-foreground mb-1">Banking Details</h2>
-                                    <p className="text-sm text-muted-foreground">Bank account information for payroll processing.</p>
+                                    <h2 className="text-base font-bold text-foreground mb-1">Payment Details</h2>
+                                    <p className="text-sm text-muted-foreground">Payroll payment method for this employee.</p>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                                    {field("Account Type", false,
-                                        <select className={selectCls} value={formData.accountType} onChange={e => set('accountType', e.target.value)}>
-                                            <option value="">Select Type</option>
-                                            <option>Savings</option>
-                                            <option>Checking</option>
-                                        </select>
-                                    )}
-                                    {field("Account Holder Name", false,
-                                        <input className={inputCls} value={formData.accountHolderName} onChange={e => set('accountHolderName', e.target.value)} placeholder="As per bank records" />
-                                    )}
-                                    {field("Bank Name", false,
-                                        <input className={inputCls} value={formData.bankName} onChange={e => set('bankName', e.target.value)} placeholder="e.g. HDFC Bank" />
-                                    )}
-                                    {field("Account Number", false,
-                                        <input className={inputCls} value={formData.accountNumber} onChange={e => set('accountNumber', e.target.value)} placeholder="Enter account number" />
-                                    )}
-                                    {field("UPI ID", false,
-                                        <input className={inputCls} value={formData.upiId} onChange={e => set('upiId', e.target.value)} placeholder="e.g. arjun@upi" />
-                                    )}
-                                    {field("IFSC Code", false,
-                                        <input className={inputCls} value={formData.ifscCode} onChange={e => set('ifscCode', e.target.value.toUpperCase())} placeholder="e.g. HDFC0001234" />
-                                    )}
-                                    {field("Bank Branch Details", false,
-                                        <input className={inputCls} value={formData.bankBranch} onChange={e => set('bankBranch', e.target.value)} placeholder="Branch name & address" />
-                                    )}
+                                {/* Payment mode toggle */}
+                                <div className="flex gap-3">
+                                    {(['bank', 'upi'] as const).map(mode => (
+                                        <button
+                                            key={mode}
+                                            type="button"
+                                            onClick={() => set('paymentMode', mode)}
+                                            className={cn(
+                                                "flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-semibold transition-all",
+                                                formData.paymentMode === mode
+                                                    ? "border-primary bg-primary/8 text-primary"
+                                                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                                            )}
+                                        >
+                                            {mode === 'bank' ? 'Bank Account' : 'UPI'}
+                                        </button>
+                                    ))}
                                 </div>
+                                {formData.paymentMode === 'bank' ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                                        {field("Account Holder Name", false,
+                                            <input className={inputCls} value={formData.accountHolderName} onChange={e => set('accountHolderName', e.target.value)} placeholder="As per bank records" />
+                                        )}
+                                        {field("Bank Name", false,
+                                            <input className={inputCls} value={formData.bankName} onChange={e => set('bankName', e.target.value)} placeholder="e.g. HDFC Bank" />
+                                        )}
+                                        {field("Account Number", false,
+                                            <input className={inputCls} value={formData.accountNumber} onChange={e => set('accountNumber', e.target.value)} placeholder="Enter account number" />
+                                        )}
+                                        {field("Account Type", false,
+                                            <select className={selectCls} value={formData.accountType} onChange={e => set('accountType', e.target.value)}>
+                                                <option value="">Select Type</option>
+                                                <option>Savings</option>
+                                                <option>Checking</option>
+                                            </select>
+                                        )}
+                                        {field("IFSC Code", false,
+                                            <input className={inputCls} value={formData.ifscCode} onChange={e => set('ifscCode', e.target.value.toUpperCase())} placeholder="e.g. HDFC0001234" />
+                                        )}
+                                        {field("Bank Branch", false,
+                                            <input className={inputCls} value={formData.bankBranch} onChange={e => set('bankBranch', e.target.value)} placeholder="Branch name & address" />
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="max-w-sm">
+                                        {field("UPI ID", false,
+                                            <input className={inputCls} value={formData.upiId} onChange={e => set('upiId', e.target.value)} placeholder="e.g. arjun@ybl" />
+                                        )}
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -462,7 +544,7 @@ export default function EmployeesPage() {
 
                 {/* Navigation — sticky inside scroll */}
                 <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex justify-between items-center">
-                    <Button variant="outline" onClick={currentStep === 0 ? closeAdd : handleBack} disabled={saving}>
+                    <Button variant="outline" onClick={currentStep === 0 ? () => closeAdd() : handleBack} disabled={saving}>
                         {currentStep === 0 ? 'Cancel' : <><ArrowLeft className="w-4 h-4 mr-1.5" />Back</>}
                     </Button>
                     {currentStep < STEPS.length - 1 ? (
@@ -561,9 +643,12 @@ export default function EmployeesPage() {
                                 <MoreVertical className="w-4 h-4" />
                             </button>
                             {openMenuId === emp._id && (
-                                <div className="absolute right-0 top-full mt-1 w-44 bg-popover border border-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2">
                                     <button onClick={() => openEdit(emp)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors text-left">
                                         <Edit className="w-3.5 h-3.5" /> Edit Employee
+                                    </button>
+                                    <button onClick={() => { setShowIdCard(emp); setOpenMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors text-left">
+                                        <CreditCard className="w-3.5 h-3.5" /> Print ID Card
                                     </button>
                                     <button onClick={() => handleToggleStatus(emp)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors text-left">
                                         {emp.status === 'Active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
@@ -578,11 +663,14 @@ export default function EmployeesPage() {
                         </div>
 
                         <div className="flex flex-col items-center text-center mb-5">
-                            <div className={cn("w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white mb-3 shadow-lg bg-gradient-to-br", emp.gradient)}>
-                                {emp.name.charAt(0).toUpperCase()}
+                            <div className={cn("w-16 h-16 rounded-full mb-3 shadow-lg overflow-hidden", !emp.image && "flex items-center justify-center text-xl font-bold text-white bg-gradient-to-br " + emp.gradient)}>
+                                {emp.image
+                                    ? <img src={emp.image} alt={emp.name} className="w-full h-full object-cover" />
+                                    : emp.name.charAt(0).toUpperCase()
+                                }
                             </div>
                             <h3 className="font-bold text-foreground">{emp.name}</h3>
-                            <p className="text-xs font-medium text-primary bg-primary/8 px-2 py-0.5 rounded-md mt-1">{emp.jobTitle || emp.employeeCategory || '—'}</p>
+                            <p className="text-xs font-medium text-primary bg-primary/8 px-2 py-0.5 rounded-md mt-1">{emp.jobTitle || '—'}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{emp.dept || '—'}</p>
                             {emp.employeeId && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{emp.employeeId}</p>}
                         </div>
@@ -615,6 +703,99 @@ export default function EmployeesPage() {
             </div>
 
             {openMenuId && <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />}
+
+            {/* ── Employee ID Card Modal ── */}
+            {showIdCard && (
+                <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowIdCard(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Modal header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b">
+                            <div className="flex items-center gap-2">
+                                <CreditCard className="w-5 h-5 text-primary" />
+                                <span className="font-bold text-foreground">Employee ID Card</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => window.print()}
+                                    className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
+                                >
+                                    <Printer className="w-4 h-4" /> Print
+                                </button>
+                                <button onClick={() => setShowIdCard(null)} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Printable card */}
+                        <div className="p-8 flex justify-center">
+                            <div
+                                id="id-card-print"
+                                className="w-[340px] rounded-2xl overflow-hidden shadow-xl border border-gray-200"
+                                style={{ fontFamily: 'Manrope, sans-serif' }}
+                            >
+                                {/* Card header — brand green */}
+                                <div className="relative px-6 pt-6 pb-10" style={{ background: 'linear-gradient(135deg, #009846 0%, #005a2b 100%)' }}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        {company?.logo
+                                            ? <img src={company.logo} alt="Logo" className="h-8 object-contain brightness-0 invert" />
+                                            : <span className="text-white font-black text-lg tracking-tight">{company?.name || 'Earthana'}</span>
+                                        }
+                                    </div>
+                                    <p className="text-green-100 text-[11px] font-medium tracking-wide uppercase">Employee Identity Card</p>
+                                    {/* Photo circle — overlapping */}
+                                    <div className="absolute -bottom-10 left-6">
+                                        <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                                            {showIdCard.image
+                                                ? <img src={showIdCard.image} alt={showIdCard.name} className="w-full h-full object-cover" />
+                                                : <span className="text-2xl font-black text-gray-400">{showIdCard.name.charAt(0)}</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Card body */}
+                                <div className="bg-white pt-12 pb-5 px-6">
+                                    <div className="mb-4">
+                                        <h2 className="text-lg font-black text-gray-900 leading-tight">
+                                            {showIdCard.initial ? `${showIdCard.initial} ` : ''}{showIdCard.name}
+                                        </h2>
+                                        <p className="text-sm font-semibold text-primary mt-0.5">{showIdCard.jobTitle || '—'}</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">{showIdCard.dept || 'General'}</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Employee ID</p>
+                                            <p className="text-sm font-bold text-gray-800 mt-0.5">{showIdCard.employeeId || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Blood Group</p>
+                                            <p className="text-sm font-bold text-red-600 mt-0.5">{showIdCard.bloodGroup || '—'}</p>
+                                        </div>
+                                        {showIdCard.phone && (
+                                            <div className="col-span-2">
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contact</p>
+                                                <p className="text-sm font-semibold text-gray-800 mt-0.5">{showIdCard.phone}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Card footer */}
+                                <div className="px-6 py-3 flex items-center justify-between" style={{ background: '#f5f0eb' }}>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-gray-500">{company?.name || 'Earthana Environmental Solutions Pvt. Ltd.'}</p>
+                                        {company?.contactNumber && <p className="text-[10px] text-gray-400">{company.contactNumber}</p>}
+                                    </div>
+                                    <div className="w-px h-6 bg-gray-300" />
+                                    <p className="text-[10px] font-bold" style={{ color: '#934e25' }}>{showIdCard.status}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </PageWrapper>
     );
 }

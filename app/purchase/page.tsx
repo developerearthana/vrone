@@ -90,7 +90,7 @@ export default function PurchaseDashboard() {
                                     <tr key={order._id} className="group hover:bg-background transition-colors">
                                         <td className="py-4 font-medium text-blue-600 cursor-pointer">{order.poNumber}</td>
                                         <td className="py-4 font-medium text-foreground">{order.vendor}</td>
-                                        <td className="py-4 text-gray-500">{format(new Date(order.date), 'MMM d, yyyy')}</td>
+                                        <td className="py-4 text-gray-500">{order.date ? format(new Date(order.date), 'MMM d, yyyy') : '—'}</td>
                                         <td className="py-4 text-right text-gray-500">{order.itemsCount}</td>
                                         <td className="py-4 text-right font-medium text-foreground">₹{order.totalValue?.toLocaleString('en-IN')}</td>
                                         <td className="py-4 text-right">

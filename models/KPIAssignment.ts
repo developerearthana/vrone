@@ -25,6 +25,7 @@ export interface IKPIAssignment extends Document {
         date: Date;
         notes?: string;
     }[];
+    category?: 'Financial' | 'HR' | 'Operations' | 'Sales' | 'Customer' | 'Quality' | 'Growth';
     completedAt?: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -67,6 +68,7 @@ const KPIAssignmentSchema = new Schema<IKPIAssignment>(
                 notes: { type: String },
             }
         ],
+        category: { type: String, enum: ['Financial', 'HR', 'Operations', 'Sales', 'Customer', 'Quality', 'Growth'], default: 'Operations' },
         completedAt: { type: Date },
     },
     { timestamps: true }

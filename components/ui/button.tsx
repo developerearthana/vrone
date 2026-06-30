@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
@@ -69,12 +70,15 @@ export interface ButtonProps
     extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
     isLoading?: boolean
+    asChild?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ className, variant, size, isLoading, children, onClick, disabled, ...props }, ref) => {
+    ({ className, variant, size, isLoading, asChild = false, children, onClick, disabled, ...props }, ref) => {
+        const Comp = asChild ? Slot : "button"
+
         const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-            if (variant !== "link" && !isLoading) {
+            if (!asChild && variant !== "link" && !isLoading) {
                 const btn = e.currentTarget
                 const rect = btn.getBoundingClientRect()
                 const ripple = document.createElement("span")
@@ -88,7 +92,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         }
 
         return (
-            <button
+            <Comp
                 ref={ref}
                 className={cn(buttonVariants({ variant, size, className }))}
                 disabled={disabled || isLoading}
@@ -96,9 +100,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 aria-busy={isLoading}
                 {...props}
             >
-                {isLoading && <span className="btn-spinner" aria-hidden="true" />}
-                {children}
-            </button>
+                {asChild ? children : (
+                    <>
+                        {isLoading && <span className="btn-spinner" aria-hidden="true" />}
+                        {children}
+                    </>
+                )}
+            </Comp>
         )
     }
 )

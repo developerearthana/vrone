@@ -11,17 +11,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { format, isPast } from 'date-fns';
+import { format, isPast, isValid, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
     createKPIAssignment, getAllKPIAssignments, getMyKPIAssignments,
     updateKPIAssignment, deleteKPIAssignment
 } from '@/app/actions/kpi-assignments';
 import { getKPITemplates } from '@/app/actions/kpi';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { getTeams } from '@/app/actions/organization';
 import { getAllUsers } from '@/app/actions/user';
+
+function safeDate(val: unknown): Date | null {
+    if (!val) return null;
+    const d = typeof val === 'string' ? parseISO(val) : new Date(val as any);
+    return isValid(d) ? d : null;
+}
 
 const STATUS_COLORS: Record<string, string> = {
     'Not Started': 'bg-gray-100 text-gray-700 border-gray-200',
@@ -100,18 +104,17 @@ export default function KPIAssignmentManager() {
                 getAllUsers(),
                 getKPITemplates(),
             ]);
-            if (kpisRes.success) setKpis(kpisRes.data || []);
-            setTeams(teamsData || []);
-            setUsers(usersData || []);
-
-            // Generate combined metrics list from templates + defaults
-            if (templatesRes.success && templatesRes.data) {
-                const templateNames = templatesRes.data.map((t: any) => t.name);
-                const combined = Array.from(new Set([...templateNames, ...METRICS]));
-                setKpiTemplates(combined as string[]);
+            if (kpisRes?.success) setKpis(kpisRes.data ?? []);
+            setTeams(Array.isArray(teamsData) ? teamsData : []);
+            setUsers(Array.isArray(usersData) ? usersData : []);
+            if (templatesRes?.success && Array.isArray(templatesRes.data)) {
+                const templateNames = (templatesRes.data as any[]).map((t) => t.name as string);
+                setKpiTemplates(Array.from(new Set([...templateNames, ...METRICS])));
             } else {
                 setKpiTemplates(METRICS);
             }
+        } catch {
+            toast.error('Failed to load KPI data');
         } finally {
             setLoading(false);
         }
@@ -135,7 +138,7 @@ export default function KPIAssignmentManager() {
             target: kpi.target,
             priority: kpi.priority as any,
             frequency: kpi.frequency,
-            dueDate: format(new Date(kpi.dueDate), 'yyyy-MM-dd'),
+            dueDate: safeDate(kpi.dueDate) ? format(safeDate(kpi.dueDate)!, 'yyyy-MM-dd') : '',
             assignType: kpi.assignedToTeam ? 'team' : 'user',
             assignedToUser: kpi.assignedToUser?._id || '',
             assignedToTeam: kpi.assignedToTeam?._id || '',
@@ -305,7 +308,8 @@ export default function KPIAssignmentManager() {
                         </div>
                         <div className="divide-y divide-gray-100">
                             {filtered.map((kpi, index) => {
-                                const overdue = kpi.status !== 'Completed' && isPast(new Date(kpi.dueDate));
+                                const due = safeDate(kpi.dueDate);
+                                const overdue = kpi.status !== 'Completed' && !!due && isPast(due);
                                 return (
                                     <div key={kpi._id} className="grid grid-cols-12 gap-0 px-4 py-2.5 items-center hover:bg-gray-50/80 transition-colors group">
                                         <div className="col-span-1 border-r border-gray-100 h-full flex items-center px-2 text-[11px] text-gray-400">
@@ -356,7 +360,7 @@ export default function KPIAssignmentManager() {
                                                 )}
                                             </div>
                                             <span className={cn('text-[9px] font-bold', overdue ? 'text-red-500' : 'text-gray-500')}>
-                                                {format(new Date(kpi.dueDate), 'dd MMM yy')}
+                                                {due ? format(due, 'dd MMM yy') : '—'}
                                             </span>
                                         </div>
 
@@ -535,7 +539,7 @@ export default function KPIAssignmentManager() {
                                         <SelectContent className="bg-white max-h-60">
                                             {users.map(u => (
                                                 <SelectItem key={u._id} value={u._id}>
-                                                    {u.name} <span className="text-gray-400 text-xs">({u.dept} · {u.role})</span>
+                                                    {`${u.name}${u.dept ? ` (${u.dept})` : ''}`}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -546,7 +550,7 @@ export default function KPIAssignmentManager() {
                                         <SelectContent className="bg-white max-h-60">
                                             {teams.map(t => (
                                                 <SelectItem key={t._id || t.id} value={t._id || t.id}>
-                                                    {t.name} <span className="text-gray-400 text-xs">({t.members?.length || 0} members)</span>
+                                                    {`${t.name} (${t.members?.length ?? 0} members)`}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

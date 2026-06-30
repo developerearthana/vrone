@@ -113,11 +113,15 @@
   .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / .4); }
 
-  /* Dark scrollbar — inside the soil sidebar */
+  /* Dark scrollbar — inside the sidebar */
   .dark-scrollbar::-webkit-scrollbar { width: 4px; }
   .dark-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .dark-scrollbar::-webkit-scrollbar-thumb { background: oklch(100% 0 0 / .14); border-radius: 99px; }
   .dark-scrollbar::-webkit-scrollbar-thumb:hover { background: oklch(100% 0 0 / .25); }
+
+  /* Hide scrollbar but keep scrollability — for module sub-navs */
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 
   /* ── Surface utilities ───────────────────────────────── */
   .glass-card {

@@ -41,9 +41,11 @@ export default function CategoriesPage() {
 
     const fetchCategories = async () => {
         setLoading(true);
-        const data = await getCategories();
-        setCategories(data);
-        setLoading(false);
+        try {
+            const data = await getCategories();
+            setCategories(data || []);
+        } catch { toast.error('Failed to load categories'); }
+        finally { setLoading(false); }
     };
 
     useEffect(() => {

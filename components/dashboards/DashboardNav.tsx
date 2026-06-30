@@ -25,11 +25,6 @@ const navItems = [
 ];
 
 export default function DashboardNav({ userRole }: { userRole?: string }) {
-    // If not super-admin, do not render anything
-    if (userRole !== 'super-admin') {
-        return null;
-    }
-
     const pathname = usePathname();
     const [users, setUsers] = useState<any>({
         admins: [],
@@ -40,12 +35,18 @@ export default function DashboardNav({ userRole }: { userRole?: string }) {
     });
 
     useEffect(() => {
+        if (userRole !== 'super-admin') return;
         const loadUsers = async () => {
             const data = await getDashboardUsers();
             setUsers(data);
         };
         loadUsers();
-    }, []);
+    }, [userRole]);
+
+    // If not super-admin, do not render anything
+    if (userRole !== 'super-admin') {
+        return null;
+    }
 
     return (
         <div className="w-full bg-card border-b border-border py-2 z-30 relative">

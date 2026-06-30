@@ -46,6 +46,7 @@ export async function createKPIAssignment(data: {
     dueDate: string;
     assignedToUser?: string;
     assignedToTeam?: string;
+    category?: string;
 }) {
     try {
         const session = await auth();
@@ -73,6 +74,7 @@ export async function createKPIAssignment(data: {
             assignedToUser,
             assignedToTeam,
             assignedBy: session.user.id,
+            category: data.category || 'Operations',
             actual: 0,
             progress: 0,
             status: 'Not Started',

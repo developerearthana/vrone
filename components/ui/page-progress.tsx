@@ -8,7 +8,7 @@ export function PageProgress() {
     const [animKey, setAnimKey] = useState(0);
     const [visible, setVisible] = useState(false);
     const prevPath = useRef<string | null>(null);
-    const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     useEffect(() => {
         if (prevPath.current === null) {

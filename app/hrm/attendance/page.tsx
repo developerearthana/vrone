@@ -50,15 +50,26 @@ export default function AttendancePage() {
         }
     };
 
+    const getLocation = (): Promise<{ lat: number; lng: number } | undefined> =>
+        new Promise(resolve => {
+            if (!navigator.geolocation) return resolve(undefined);
+            navigator.geolocation.getCurrentPosition(
+                pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                () => resolve(undefined),
+                { timeout: 5000 }
+            );
+        });
+
     const handlePunch = async () => {
         setIsPunchLoading(true);
         try {
             if (!isPunchedIn) {
-                const res = await punchIn();
+                const location = await getLocation();
+                const res = await punchIn(undefined, 'Office', location);
                 if (res.success) {
                     setIsPunchedIn(true);
                     setPunchInTime(format(new Date(res.data.punchIn), 'HH:mm'));
-                    toast.success('Punched in successfully ✅');
+                    toast.success(location ? 'Punched in with location ✅' : 'Punched in successfully ✅');
                     loadAttendance();
                 } else {
                     toast.error(res.error || 'Punch in failed');

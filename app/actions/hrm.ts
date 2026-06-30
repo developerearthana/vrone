@@ -107,14 +107,37 @@ export const getAttendance = async (userId?: string, month?: number, year?: numb
     }
 };
 
-export const punchIn = async (_clientUserId?: string, workMode: 'Office' | 'Remote' = 'Office') => {
+export const punchIn = async (_clientUserId?: string, workMode: 'Office' | 'Remote' = 'Office', location?: { lat: number; lng: number }) => {
     try {
-        // Always use server-side session — never trust client-passed userId
         const session = await auth();
         if (!session?.user?.id) return { success: false, error: 'You must be logged in to punch in.' };
         const userId = session.user.id;
-        const data = await hrmService.punchIn(userId, workMode);
+        const data = await hrmService.punchIn(userId, workMode, location);
         revalidatePath("/hrm/attendance");
+        return { success: true, data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+export const adminAdjustAttendance = async (payload: {
+    userId: string;
+    date: string;
+    punchIn?: string;
+    punchOut?: string;
+    status: string;
+    workMode: string;
+    remarks?: string;
+}) => {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { success: false, error: 'Unauthorized' };
+        const role = session.user.role?.toLowerCase() || '';
+        if (!role.includes('admin') && !role.includes('manager') && !role.includes('hr')) {
+            return { success: false, error: 'Access denied' };
+        }
+        const data = await hrmService.adminAdjustAttendance(payload);
+        revalidatePath("/hrm/attendance-report");
         return { success: true, data };
     } catch (error: any) {
         return { success: false, error: error.message };

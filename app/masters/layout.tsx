@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Layers, Users, Network, Settings, Briefcase, BarChart3, Tag, Target } from 'lucide-react';
+import { Building2, Layers, Users, Network, Settings, Briefcase, Tag, Briefcase as TitleIcon } from 'lucide-react';
 
 export default function MastersLayout({
     children,
@@ -13,6 +13,7 @@ export default function MastersLayout({
         { name: 'Company', href: '/masters/company', icon: Building2 },
         { name: 'Entities', href: '/masters/subsidiaries', icon: Layers },
         { name: 'Depts', href: '/masters/departments', icon: Briefcase },
+        { name: 'Job Titles', href: '/masters/job-titles', icon: TitleIcon },
         { name: 'User Types', href: '/masters/usertypes', icon: Users },
         { name: 'Users', href: '/masters/users', icon: Users },
         { name: 'Teams', href: '/masters/teams', icon: Network },
@@ -37,8 +38,8 @@ export default function MastersLayout({
                                 href={item.href}
                                 className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-all whitespace-nowrap border
                                     ${isActive
-                                        ? 'bg-white text-green-700 border-green-200 shadow-sm'
-                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-white hover:text-green-700'
+                                        ? 'bg-primary/10 text-primary border-primary/30 shadow-sm'
+                                        : 'bg-background text-muted-foreground border-border hover:bg-primary/5 hover:text-primary'
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />

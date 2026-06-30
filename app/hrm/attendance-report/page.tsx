@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { format, subDays, addDays, isToday } from 'date-fns';
-import { getAllAttendance, getAttendanceReport } from '@/app/actions/hrm';
+import { getAllAttendance, getAttendanceReport, adminAdjustAttendance } from '@/app/actions/hrm';
 import { getAllUsers } from '@/app/actions/user';
 import { PageWrapper } from '@/components/ui/page-wrapper';
-import { Clock, Users, CheckCircle, XCircle, ChevronLeft, ChevronRight, Download, Filter, Loader2, Calendar, BarChart3, Wifi } from 'lucide-react';
+import { Clock, Users, CheckCircle, XCircle, ChevronLeft, ChevronRight, Download, Filter, Loader2, Calendar, BarChart3, Wifi, Plus, X, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -18,6 +18,7 @@ interface AttendanceRecord {
     status: string;
     workMode: string;
     hoursWorked: number;
+    adminAdjusted?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,6 +30,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 type ViewMode = 'daily' | 'monthly';
+
+const EMPTY_FORM = {
+    userId: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    punchIn: '',
+    punchOut: '',
+    status: 'Present',
+    workMode: 'Office',
+    remarks: '',
+};
 
 export default function HRMAttendanceAdminPage() {
     const [viewMode, setViewMode] = useState<ViewMode>('daily');
@@ -42,12 +53,17 @@ export default function HRMAttendanceAdminPage() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
 
+    // Manual entry state
+    const [showEntryPanel, setShowEntryPanel] = useState(false);
+    const [entryForm, setEntryForm] = useState(EMPTY_FORM);
+    const [saving, setSaving] = useState(false);
+
     useEffect(() => {
         loadData();
     }, [viewMode, selectedDate, selectedMonth, selectedYear]);
 
     useEffect(() => {
-        getAllUsers().then(u => setAllUsers(u || []));
+        getAllUsers().then(u => setAllUsers(Array.isArray(u) ? u : []));
     }, []);
 
     const loadData = async () => {
@@ -68,10 +84,53 @@ export default function HRMAttendanceAdminPage() {
         setLoading(false);
     };
 
-    // Stats for daily view
+    const openEntryForRecord = (record: AttendanceRecord) => {
+        setEntryForm({
+            userId: record.userId?._id || '',
+            date: format(new Date(record.date), 'yyyy-MM-dd'),
+            punchIn: record.punchIn ? format(new Date(record.punchIn), "yyyy-MM-dd'T'HH:mm") : '',
+            punchOut: record.punchOut ? format(new Date(record.punchOut), "yyyy-MM-dd'T'HH:mm") : '',
+            status: record.status,
+            workMode: record.workMode,
+            remarks: '',
+        });
+        setShowEntryPanel(true);
+    };
+
+    const handleSaveEntry = async () => {
+        if (!entryForm.userId) return toast.error('Please select an employee');
+        if (!entryForm.date) return toast.error('Please select a date');
+        setSaving(true);
+        try {
+            const res = await adminAdjustAttendance({
+                userId: entryForm.userId,
+                date: entryForm.date,
+                punchIn: entryForm.punchIn || undefined,
+                punchOut: entryForm.punchOut || undefined,
+                status: entryForm.status,
+                workMode: entryForm.workMode,
+                remarks: entryForm.remarks || undefined,
+            });
+            if (res.success) {
+                toast.success('Attendance updated successfully');
+                setShowEntryPanel(false);
+                setEntryForm(EMPTY_FORM);
+                loadData();
+            } else {
+                toast.error(res.error || 'Failed to save');
+            }
+        } catch {
+            toast.error('An error occurred');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const stats = {
         present: records.filter(r => r.status === 'Present' || r.status === 'WFH').length,
-        absent: viewMode === 'daily' ? Math.max(0, allUsers.length - records.filter(r => r.status !== 'Absent').length) : records.filter(r => r.status === 'Absent').length,
+        absent: viewMode === 'daily'
+            ? Math.max(0, allUsers.length - records.filter(r => r.status !== 'Absent').length)
+            : records.filter(r => r.status === 'Absent').length,
         late: records.filter(r => r.punchIn && new Date(r.punchIn).getHours() >= 10).length,
         wfh: records.filter(r => r.workMode === 'Remote').length,
     };
@@ -84,7 +143,7 @@ export default function HRMAttendanceAdminPage() {
     });
 
     const exportCSV = () => {
-        const headers = ['Employee', 'Department', 'Date', 'Punch In', 'Punch Out', 'Status', 'Work Mode', 'Hours'];
+        const headers = ['Employee', 'Department', 'Date', 'Punch In', 'Punch Out', 'Status', 'Work Mode', 'Hours', 'Admin Adjusted'];
         const rows = filteredRecords.map(r => [
             r.userId?.name || 'Unknown',
             r.userId?.dept || '',
@@ -94,6 +153,7 @@ export default function HRMAttendanceAdminPage() {
             r.status,
             r.workMode,
             r.hoursWorked?.toFixed(1) || '0',
+            r.adminAdjusted ? 'Yes' : 'No',
         ]);
         const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -112,10 +172,9 @@ export default function HRMAttendanceAdminPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">Attendance Report</h1>
-                    <p className="text-muted-foreground text-sm mt-1">Track employee punch in/out times and attendance status.</p>
+                    <p className="text-muted-foreground text-sm mt-1">Track and correct employee punch in/out times.</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    {/* View Toggle */}
                     <div className="flex items-center bg-muted rounded-lg p-1 text-sm">
                         <button
                             onClick={() => setViewMode('daily')}
@@ -131,6 +190,12 @@ export default function HRMAttendanceAdminPage() {
                         </button>
                     </div>
                     <button
+                        onClick={() => { setEntryForm(EMPTY_FORM); setShowEntryPanel(true); }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:brightness-110 transition-all"
+                    >
+                        <Plus className="w-4 h-4" /> Manual Entry
+                    </button>
+                    <button
                         onClick={exportCSV}
                         className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg text-sm bg-card hover:bg-muted transition-colors text-foreground"
                     >
@@ -143,41 +208,24 @@ export default function HRMAttendanceAdminPage() {
             <div className="glass-card rounded-xl p-4 border border-border bg-card flex flex-col sm:flex-row sm:items-center gap-4">
                 {viewMode === 'daily' ? (
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-                            className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                        >
+                        <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
                             <ChevronLeft className="w-4 h-4" />
                         </button>
                         <div className="text-center">
                             <p className="font-bold text-foreground">{format(selectedDate, 'EEEE, d MMMM yyyy')}</p>
                             {isToday(selectedDate) && <span className="text-xs text-primary font-semibold">Today</span>}
                         </div>
-                        <button
-                            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-                            className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                            disabled={isToday(selectedDate)}
-                        >
+                        <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground" disabled={isToday(selectedDate)}>
                             <ChevronRight className="w-4 h-4" />
                         </button>
                         <button onClick={() => setSelectedDate(new Date())} className="text-xs text-primary hover:underline font-medium ml-2">Today</button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-3">
-                        <select
-                            value={selectedMonth}
-                            onChange={e => setSelectedMonth(Number(e.target.value))}
-                            className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
-                            aria-label="Month"
-                        >
+                        <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none" aria-label="Month">
                             {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
                         </select>
-                        <select
-                            value={selectedYear}
-                            onChange={e => setSelectedYear(Number(e.target.value))}
-                            className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
-                            aria-label="Year"
-                        >
+                        <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none" aria-label="Year">
                             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                     </div>
@@ -250,6 +298,7 @@ export default function HRMAttendanceAdminPage() {
                                     <th className="px-5 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Hours</th>
                                     <th className="px-5 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                                     <th className="px-5 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Mode</th>
+                                    <th className="px-5 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Adjust</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -265,7 +314,12 @@ export default function HRMAttendanceAdminPage() {
                                                         {initials || '?'}
                                                     </div>
                                                     <div>
-                                                        <p className="font-semibold text-foreground">{user?.name || 'Unknown'}</p>
+                                                        <p className="font-semibold text-foreground flex items-center gap-1.5">
+                                                            {user?.name || 'Unknown'}
+                                                            {record.adminAdjusted && (
+                                                                <span className="text-[10px] bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-semibold">ADJUSTED</span>
+                                                            )}
+                                                        </p>
                                                         <p className="text-xs text-muted-foreground sm:hidden">{user?.dept || '—'}</p>
                                                     </div>
                                                 </div>
@@ -280,20 +334,14 @@ export default function HRMAttendanceAdminPage() {
                                                         {format(new Date(record.punchIn), 'HH:mm')}
                                                         {punchInLate && <span className="ml-1 text-[10px] bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-1 rounded">LATE</span>}
                                                     </span>
-                                                ) : (
-                                                    <span className="text-muted-foreground/50">—</span>
-                                                )}
+                                                ) : <span className="text-muted-foreground/50">—</span>}
                                             </td>
                                             <td className="px-5 py-4">
                                                 {record.punchOut ? (
-                                                    <span className="font-mono font-semibold text-sm text-foreground">
-                                                        {format(new Date(record.punchOut), 'HH:mm')}
-                                                    </span>
+                                                    <span className="font-mono font-semibold text-sm text-foreground">{format(new Date(record.punchOut), 'HH:mm')}</span>
                                                 ) : record.punchIn ? (
                                                     <span className="text-xs text-amber-600 font-medium animate-pulse">Active ●</span>
-                                                ) : (
-                                                    <span className="text-muted-foreground/50">—</span>
-                                                )}
+                                                ) : <span className="text-muted-foreground/50">—</span>}
                                             </td>
                                             <td className="px-5 py-4 text-foreground hidden sm:table-cell">
                                                 {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(1)}h` : '—'}
@@ -309,12 +357,21 @@ export default function HRMAttendanceAdminPage() {
                                                     {record.workMode}
                                                 </span>
                                             </td>
+                                            <td className="px-5 py-4">
+                                                <button
+                                                    onClick={() => openEntryForRecord(record)}
+                                                    className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
+                                                    title="Adjust attendance"
+                                                >
+                                                    <PenLine className="w-4 h-4" />
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })}
                                 {filteredRecords.length === 0 && (
                                     <tr>
-                                        <td colSpan={8} className="px-5 py-14 text-center">
+                                        <td colSpan={9} className="px-5 py-14 text-center">
                                             <Clock className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
                                             <p className="text-muted-foreground font-medium">No attendance records for this date</p>
                                             <p className="text-xs text-muted-foreground/60 mt-1">Employees haven't punched in yet, or no data exists.</p>
@@ -326,6 +383,133 @@ export default function HRMAttendanceAdminPage() {
                     </div>
                 )}
             </div>
+
+            {/* Manual Entry Panel */}
+            {showEntryPanel && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowEntryPanel(false); }}>
+                    <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
+                        {/* Panel header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+                            <div className="flex items-center gap-2">
+                                <PenLine className="w-4 h-4 text-primary" />
+                                <h2 className="font-bold text-foreground">Manual Attendance Entry</h2>
+                            </div>
+                            <button onClick={() => setShowEntryPanel(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <div className="px-6 py-5 space-y-4">
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Employee</label>
+                                <select
+                                    value={entryForm.userId}
+                                    onChange={e => setEntryForm(f => ({ ...f, userId: e.target.value }))}
+                                    className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                    aria-label="Employee"
+                                >
+                                    <option value="">Select employee…</option>
+                                    {allUsers.map(u => (
+                                        <option key={u._id} value={u._id}>{`${u.name}${u.dept ? ` — ${u.dept}` : ''}`}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Date</label>
+                                <input
+                                    type="date"
+                                    value={entryForm.date}
+                                    max={format(new Date(), 'yyyy-MM-dd')}
+                                    onChange={e => setEntryForm(f => ({ ...f, date: e.target.value }))}
+                                    className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Punch In</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={entryForm.punchIn}
+                                        onChange={e => setEntryForm(f => ({ ...f, punchIn: e.target.value }))}
+                                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Punch Out</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={entryForm.punchOut}
+                                        onChange={e => setEntryForm(f => ({ ...f, punchOut: e.target.value }))}
+                                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Status</label>
+                                    <select
+                                        value={entryForm.status}
+                                        onChange={e => setEntryForm(f => ({ ...f, status: e.target.value }))}
+                                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                        aria-label="Status"
+                                    >
+                                        <option value="Present">Present</option>
+                                        <option value="WFH">WFH</option>
+                                        <option value="Half-Day">Half-Day</option>
+                                        <option value="Leave">On Leave</option>
+                                        <option value="Absent">Absent</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Work Mode</label>
+                                    <select
+                                        value={entryForm.workMode}
+                                        onChange={e => setEntryForm(f => ({ ...f, workMode: e.target.value }))}
+                                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                        aria-label="Work Mode"
+                                    >
+                                        <option value="Office">Office</option>
+                                        <option value="Remote">Remote</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Remarks</label>
+                                <input
+                                    type="text"
+                                    placeholder="Reason for adjustment…"
+                                    value={entryForm.remarks}
+                                    onChange={e => setEntryForm(f => ({ ...f, remarks: e.target.value }))}
+                                    className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3 px-6 pb-6">
+                            <button
+                                onClick={() => setShowEntryPanel(false)}
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEntry}
+                                disabled={saving}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                {saving ? 'Saving…' : 'Save Entry'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </PageWrapper>
     );
 }

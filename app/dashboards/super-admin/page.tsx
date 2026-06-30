@@ -1,25 +1,42 @@
 "use client";
 
-import { Activity, Users, DollarSign, ArrowUpRight, ShieldCheck, Server, AlertTriangle, Download, Clock, CheckCircle2, XCircle, LogIn, LogOut, Loader2 } from 'lucide-react';
+import {
+    Users, DollarSign, ArrowUpRight, AlertTriangle, Download,
+    Clock, CheckCircle2, XCircle, LogIn, LogOut, Loader2,
+    CalendarDays, Home, Briefcase, Plane, FileText, Target,
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, useCallback } from "react";
-import { getLiveUsers, getLeaves, approveLeave, punchIn, punchOut, getAttendance } from "@/app/actions/hrm";
+import { getLiveUsers, punchIn, punchOut, getAttendance } from "@/app/actions/hrm";
+import { getAllHRMRequests, updateHRMRequestStatus, getPendingRequestsSummary } from "@/app/actions/hrm-requests";
 import { toast } from "sonner";
 import { format, isToday } from "date-fns";
 import dynamic from 'next/dynamic';
-import { Target } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { HRMRequestCategory } from "@/models/HRMRequest";
 import { getAllKPIAssignments } from "@/app/actions/kpi-assignments";
+import { getAdminDashboardData } from "@/app/actions/admin";
+import { getFinancialSummary } from "@/app/actions/banking";
 
-const KPITrackingGrid = dynamic(() => import('@/components/kpi/KPITrackingGrid').then(m => ({ default: m.KPITrackingGrid })), { ssr: false });
+const KPITrackingGrid = dynamic(
+    () => import('@/components/kpi/KPITrackingGrid').then(m => ({ default: m.KPITrackingGrid })),
+    { ssr: false }
+);
 
 export default function SuperAdminDashboard() {
     const [liveUsers, setLiveUsers] = useState<any[]>([]);
-    const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+    const [requestSummary, setRequestSummary] = useState<Record<string, number>>({});
+    const [totalPending, setTotalPending] = useState(0);
     const [loadingLive, setLoadingLive] = useState(true);
     const [kpis, setKpis] = useState<any[]>([]);
     const [isPunchedIn, setIsPunchedIn] = useState(false);
     const [punchTime, setPunchTime] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [decidingId, setDecidingId] = useState<string | null>(null);
+    const [activeCatFilter, setActiveCatFilter] = useState<HRMRequestCategory | 'All'>('All');
+    const [activeUserCount, setActiveUserCount] = useState<number | null>(null);
+    const [monthlyRevenue, setMonthlyRevenue] = useState<number | null>(null);
 
     const loadKPIs = useCallback(async () => {
         const res = await getAllKPIAssignments();
@@ -31,261 +48,305 @@ export default function SuperAdminDashboard() {
         try {
             if (!isPunchedIn) {
                 const res = await punchIn();
-                if (res.success) {
-                    setIsPunchedIn(true);
-                    setPunchTime(format(new Date(res.data.punchIn), 'HH:mm'));
-                    toast.success('Punched in successfully!');
-                } else {
-                    toast.error(res.error || 'Punch in failed');
-                }
+                if (res.success) { setIsPunchedIn(true); setPunchTime(format(new Date(res.data.punchIn), 'HH:mm')); toast.success('Punched in'); }
+                else toast.error(res.error || 'Punch in failed');
             } else {
                 const res = await punchOut();
-                if (res.success) {
-                    setIsPunchedIn(false);
-                    setPunchTime(null);
-                    toast.success('Punched out successfully!');
-                } else {
-                    toast.error(res.error || 'Punch out failed');
-                }
+                if (res.success) { setIsPunchedIn(false); setPunchTime(null); toast.success('Punched out'); }
+                else toast.error(res.error || 'Punch out failed');
             }
-        } catch {
-            toast.error('An error occurred');
-        } finally {
-            setActionLoading(false);
-        }
+        } catch { toast.error('An error occurred'); }
+        finally { setActionLoading(false); }
     };
 
     useEffect(() => {
-        const loadDashboardData = async () => {
+        const load = async () => {
             try {
-                try {
-                    const now = new Date();
-                    const attRes = await getAttendance(undefined, now.getMonth(), now.getFullYear());
-                    if (attRes.success && attRes.data) {
-                        const todayRec = attRes.data.find((r: any) => isToday(new Date(r.date)));
-                        if (todayRec?.punchIn && !todayRec?.punchOut) {
-                            setIsPunchedIn(true);
-                            setPunchTime(format(new Date(todayRec.punchIn), 'HH:mm'));
-                        }
+                const now = new Date();
+                const [attRes, liveRes, listRes, summaryRes, adminRes, finRes] = await Promise.all([
+                    getAttendance(undefined, now.getMonth(), now.getFullYear()),
+                    getLiveUsers(),
+                    getAllHRMRequests({ status: 'Pending', limit: 20 }),
+                    getPendingRequestsSummary(),
+                    getAdminDashboardData(),
+                    getFinancialSummary(),
+                ]);
+
+                if (attRes.success && attRes.data) {
+                    const todayRec = attRes.data.find((r: any) => isToday(new Date(r.date)));
+                    if (todayRec?.punchIn && !todayRec?.punchOut) {
+                        setIsPunchedIn(true);
+                        setPunchTime(format(new Date(todayRec.punchIn), 'HH:mm'));
                     }
-                } catch (e) { console.warn('Attendance load failed', e); }
+                }
+                if (liveRes.success && liveRes.data) setLiveUsers(liveRes.data);
+                if (listRes.success) setPendingRequests(listRes.data);
+                if (summaryRes.success) { setRequestSummary(summaryRes.data.summary); setTotalPending(summaryRes.data.total); }
+                if (adminRes.success && adminRes.data) setActiveUserCount(adminRes.data.stats.activeUsers);
+                if (finRes?.totalIncome !== undefined) setMonthlyRevenue(finRes.totalIncome);
 
-                try {
-                    const liveRes = await getLiveUsers();
-                    if (liveRes.success && liveRes.data) setLiveUsers(liveRes.data);
-                } catch (e) { console.warn('Live users load failed', e); }
-
-                try {
-                    const leavesRes = await getLeaves();
-                    if (leavesRes.success && leavesRes.data) {
-                        setLeaveRequests(leavesRes.data.filter((r: any) => r.status === 'Pending'));
-                    }
-                } catch (e) { console.warn('Leaves load failed', e); }
-
-                try {
-                    await loadKPIs();
-                } catch (e) { console.warn('KPIs load failed', e); }
-
-            } catch (error) {
-                console.error("Failed to load dashboard data", error);
-            } finally {
-                setLoadingLive(false);
-            }
+                await loadKPIs();
+            } catch (e) { console.error('Dashboard load error', e); }
+            finally { setLoadingLive(false); }
         };
 
-        loadDashboardData();
-        // Optional: setup a simple polling for live users every minute
-        const interval = setInterval(loadDashboardData, 60000);
+        load();
+        const interval = setInterval(load, 60000);
         return () => clearInterval(interval);
     }, [loadKPIs]);
 
-    const handleApproveLeave = async (id: string, action: 'Approved' | 'Rejected') => {
+    const handleRequestDecision = async (id: string, action: 'Approved' | 'Rejected') => {
+        setDecidingId(id);
         try {
-            const res = await approveLeave(id, action);
+            const res = await updateHRMRequestStatus(id, action);
             if (res.success) {
-                toast.success(`Request ${action}`);
-                setLeaveRequests(prev => prev.filter(r => r._id !== id));
-            } else {
-                toast.error("Failed to update status");
-            }
-        } catch (error) {
-            toast.error("An error occurred");
-        }
+                toast.success(`Request ${action.toLowerCase()}`);
+                setPendingRequests(prev => prev.filter(r => r._id !== id));
+                setTotalPending(n => Math.max(0, n - 1));
+            } else toast.error('Failed to update status');
+        } catch { toast.error('An error occurred'); }
+        setDecidingId(null);
     };
 
-    const stats = [
-        { title: 'Total Users', value: '1,248', change: '+12%', color: 'bg-white', textColor: 'text-blue-600', icon: Users },
-        { title: 'Live Staff', value: liveUsers.length.toString(), change: 'Live', color: 'bg-emerald-50', textColor: 'text-emerald-600', icon: Clock },
-        { title: 'Monthly Revenue', value: '$84.3k', change: '+8%', color: 'bg-white', textColor: 'text-purple-600', icon: DollarSign },
-        { title: 'Pending Leaves', value: leaveRequests.length.toString(), change: 'Requires Action', color: 'bg-amber-50', textColor: 'text-amber-600', icon: AlertTriangle },
+    const formatRevenue = (v: number | null) => {
+        if (v === null) return '—';
+        if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+        if (v >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
+        return `₹${v}`;
+    };
+
+    const statCards = [
+        {
+            title: 'Active Users', icon: Users,
+            value: activeUserCount !== null ? activeUserCount.toString() : '—',
+            sub: 'Registered accounts', accent: 'text-sky-600 bg-sky-50',
+        },
+        {
+            title: 'Live Staff', icon: Clock,
+            value: liveUsers.length.toString(),
+            sub: 'Punched in now', accent: 'text-emerald-600 bg-emerald-50',
+        },
+        {
+            title: 'Monthly Income', icon: DollarSign,
+            value: formatRevenue(monthlyRevenue),
+            sub: 'Total invoiced this month', accent: 'text-primary bg-primary/8',
+        },
+        {
+            title: 'Pending Requests', icon: AlertTriangle,
+            value: totalPending.toString(),
+            sub: 'Requires action', accent: 'text-amber-600 bg-amber-50',
+        },
     ];
 
+    const CAT_META = [
+        { cat: 'Leave' as HRMRequestCategory, icon: CalendarDays, color: 'bg-red-50 text-red-700 border-red-200' },
+        { cat: 'WFH' as HRMRequestCategory, icon: Home, color: 'bg-sky-50 text-sky-700 border-sky-200' },
+        { cat: 'On Duty' as HRMRequestCategory, icon: Briefcase, color: 'bg-amber-50 text-amber-700 border-amber-200' },
+        { cat: 'Travel' as HRMRequestCategory, icon: Plane, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        { cat: 'Other' as HRMRequestCategory, icon: FileText, color: 'bg-stone-100 text-stone-700 border-stone-300' },
+    ];
+
+    const CAT_COLORS: Record<string, string> = {
+        Leave: 'bg-red-50 text-red-700 border-red-200',
+        WFH: 'bg-sky-50 text-sky-700 border-sky-200',
+        'On Duty': 'bg-amber-50 text-amber-700 border-amber-200',
+        Travel: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        Other: 'bg-stone-100 text-stone-700 border-stone-300',
+    };
+
     return (
-        <div className="space-y-4 p-4">
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border border-border">
+        <div className="space-y-5 p-4">
+            {/* Header */}
+            <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-border">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary">
-                        Super Admin Dashboard
-                    </h1>
-                    <p className="text-muted-foreground text-sm">Welcome back, Administrator</p>
+                    <h1 className="text-xl font-bold text-foreground">Super Admin Dashboard</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">Operations overview — {format(new Date(), 'EEEE, d MMMM yyyy')}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="hidden sm:flex">
-                        <Download className="mr-2 h-4 w-4" /> Export
+                    <Button variant="outline" size="sm" className="hidden sm:flex text-xs">
+                        <Download className="mr-1.5 h-3.5 w-3.5" /> Export
                     </Button>
                     <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg">
                         {punchTime && (
                             <div className="text-right hidden md:block">
                                 <p className="text-xs text-muted-foreground">Punched in at</p>
-                                <p className="font-mono font-bold text-sm">{punchTime}</p>
+                                <p className="font-mono font-bold text-sm text-foreground">{punchTime}</p>
                             </div>
                         )}
                         {punchTime && <div className="h-8 w-px bg-border hidden md:block" />}
                         <button
                             onClick={handlePunch}
                             disabled={actionLoading}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors ${isPunchedIn
-                                ? 'bg-red-500 hover:bg-red-600 text-white'
-                                : 'bg-primary text-white hover:bg-primary/90'
-                                } disabled:opacity-60`}
-                        >
-                            {actionLoading ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : isPunchedIn ? (
-                                <><LogOut className="w-4 h-4" /> Punch Out</>
-                            ) : (
-                                <><LogIn className="w-4 h-4" /> Punch In</>
+                            className={cn(
+                                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60',
+                                isPunchedIn ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-primary text-white hover:bg-primary/90'
                             )}
+                        >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                isPunchedIn ? <><LogOut className="w-4 h-4" /> Punch Out</> :
+                                    <><LogIn className="w-4 h-4" /> Punch In</>}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {stats.map((stat, i) => (
-                    <div key={i} className={`glass-card p-5 rounded-xl border ${stat.color.replace('bg-', 'border-').replace('-50', '-100')} flex flex-col justify-between h-32`}>
-                        <div className="flex justify-between items-start">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {statCards.map(({ title, value, sub, icon: Icon, accent }) => (
+                    <div key={title} className="bg-card border border-border rounded-xl p-5 flex flex-col justify-between h-28">
+                        <div className="flex items-start justify-between">
                             <div>
-                                <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
-                                <h3 className="text-2xl font-bold text-foreground mt-1">{stat.value}</h3>
+                                <p className="text-xs text-muted-foreground font-medium">{title}</p>
+                                <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
                             </div>
-                            <div className={`p-2 rounded-lg bg-muted`}>
-                                <stat.icon className={`w-5 h-5 ${stat.textColor}`} />
+                            <div className={cn('p-2 rounded-lg', accent)}>
+                                <Icon className="w-4 h-4" />
                             </div>
                         </div>
-                        <p className={`text-xs flex items-center gap-1 font-medium ${(stat.change || '').includes('+') ? 'text-green-600' : (stat.change || '').includes('-') ? 'text-red-600' : stat.change === 'Stable' ? 'text-gray-500' : 'text-blue-600'}`}>
-                            {stat.change && (stat.change.includes('+') || stat.change.includes('-')) && <ArrowUpRight className={`w-3 h-3 ${stat.change.includes('-') ? 'rotate-180' : ''}`} />}
-                            {!stat.change || stat.change === 'Stable' || !stat.change.includes('%') ? (stat.change || '') : `${stat.change} vs last month`}
-                        </p>
+                        <p className="text-[11px] text-muted-foreground">{sub}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="lg:col-span-2 space-y-6">
-                <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-foreground">System Activity & Traffic</h3>
-                        <select
-                            className="text-sm border-border rounded-lg p-1.5 bg-background text-foreground"
-                            aria-label="Select Time Range"
-                        >
-                            <option>Last 7 Days</option>
-                        </select>
-                    </div>
-                    <div className="h-40 flex items-center justify-center text-gray-400 bg-background rounded-lg border border-dashed border-gray-200">
-                        [Chart Visualization Placeholder]
-                    </div>
+            {/* Live Staff */}
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                    <h3 className="font-bold text-foreground flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                        </span>
+                        Live Staff Tracking
+                    </h3>
+                    <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full">
+                        {liveUsers.length} online
+                    </span>
                 </div>
-
-                <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-foreground flex items-center gap-2">
-                            <span className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                            </span>
-                            Live Staff Tracking
-                        </h3>
-                        <div className="text-xs bg-emerald-100 text-emerald-800 font-medium px-2 py-1 rounded-full">
-                            {liveUsers.length} Online Now
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {loadingLive ? (
-                            <p className="text-sm text-gray-500 col-span-3">Syncing live data...</p>
-                        ) : liveUsers.length === 0 ? (
-                            <p className="text-sm text-gray-500 col-span-3">No staff members are currently logged in/punched in.</p>
-                        ) : (
-                            liveUsers.map((record: any) => (
-                                <div key={record._id} className="flex items-center gap-3 p-3 border border-emerald-100 bg-emerald-50/30 rounded-lg">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-300 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-white">
-                                        {record.userId?.name?.charAt(0) || '?'}
+                <div className="p-4">
+                    {loadingLive ? (
+                        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                    ) : liveUsers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">No staff currently punched in.</p>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            {liveUsers.map((rec: any) => (
+                                <div key={rec._id} className="flex flex-col items-center gap-2 p-3 bg-muted/30 border border-border rounded-xl">
+                                    <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm ring-2 ring-white">
+                                        {rec.userId?.name?.charAt(0) || '?'}
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-sm text-gray-900">{record.userId?.name || 'Unknown'}</p>
-                                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                                            <Clock className="w-3 h-3" />
-                                            In since {format(new Date(record.punchIn), 'HH:mm')}
+                                    <div className="text-center min-w-0 w-full">
+                                        <p className="text-xs font-semibold text-foreground truncate">{rec.userId?.name || 'Unknown'}</p>
+                                        <p className="text-[10px] text-emerald-600 font-medium">
+                                            {format(new Date(rec.punchIn), 'HH:mm')}
                                         </p>
                                     </div>
                                 </div>
-                            ))
-                        )}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* KPI Performance Section */}
-            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                            <Target className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-foreground">KPI Operation Status</h3>
-                            <p className="text-xs text-muted-foreground">Team performance & individual contributions</p>
-                        </div>
+            {/* KPI Section */}
+            <div className="bg-card border border-border rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2 bg-primary/8 text-primary rounded-lg">
+                        <Target className="w-4 h-4" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground">KPI Operation Status</h3>
+                        <p className="text-xs text-muted-foreground">Team performance & individual contributions</p>
                     </div>
                 </div>
                 <KPITrackingGrid data={kpis} onRefresh={loadKPIs} />
             </div>
 
-            <div className="space-y-6">
-                <div className="bg-card p-6 rounded-xl border border-border shadow-sm flex-1">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-foreground">Pending Leaves</h3>
-                        <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{leaveRequests.length}</span>
+            {/* Pending HR Requests */}
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-wrap gap-3">
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-foreground">Pending HR Requests</h3>
+                        {totalPending > 0 && (
+                            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{totalPending}</span>
+                        )}
                     </div>
-                    <div className="space-y-3">
-                        {leaveRequests.length === 0 ? (
-                            <p className="text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-lg border border-dashed">No pending requests</p>
-                        ) : (
-                            leaveRequests.slice(0, 5).map(req => (
-                                <div key={req._id} className="p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-sm font-bold text-gray-900">{req.userName}</span>
-                                        <span className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{req.type}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mb-3 font-medium">
-                                        {format(new Date(req.startDate), 'MMM d')} - {format(new Date(req.endDate), 'MMM d, yyyy')}
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleApproveLeave(req._id, 'Approved')} className="flex-1 py-1.5 text-xs font-bold rounded flex items-center justify-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                                        </button>
-                                        <button onClick={() => handleApproveLeave(req._id, 'Rejected')} className="flex-1 py-1.5 text-xs font-bold rounded flex items-center justify-center gap-1 bg-red-50 text-red-700 hover:bg-red-100 transition-colors">
-                                            <XCircle className="w-3.5 h-3.5" /> Deny
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {CAT_META.map(({ cat, icon: Icon, color }) =>
+                            (requestSummary[cat] || 0) > 0 ? (
+                                <button
+                                    key={cat}
+                                    onClick={() => setActiveCatFilter(activeCatFilter === cat ? 'All' : cat)}
+                                    className={cn(
+                                        'flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all',
+                                        color,
+                                        activeCatFilter === cat ? 'ring-2 ring-offset-1 ring-current' : 'opacity-80 hover:opacity-100'
+                                    )}
+                                >
+                                    <Icon className="w-3 h-3" />{cat} · {requestSummary[cat]}
+                                </button>
+                            ) : null
                         )}
                     </div>
                 </div>
 
+                <div className="divide-y divide-border">
+                    {pendingRequests.filter(r => activeCatFilter === 'All' || r.category === activeCatFilter).length === 0 ? (
+                        <div className="text-center py-8">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-foreground">All clear</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">No pending requests require attention</p>
+                        </div>
+                    ) : (
+                        pendingRequests
+                            .filter(r => activeCatFilter === 'All' || r.category === activeCatFilter)
+                            .map(req => {
+                                const meta = CAT_META.find(m => m.cat === req.category);
+                                const Icon = meta?.icon || FileText;
+                                const isDeciding = decidingId === req._id;
+                                return (
+                                    <div key={req._id} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/20 transition-colors">
+                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0 uppercase">
+                                            {req.userName.substring(0, 2)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-sm font-semibold text-foreground">{req.userName}</span>
+                                                <span className={cn('inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border', CAT_COLORS[req.category])}>
+                                                    <Icon className="w-3 h-3" />{req.category}
+                                                    {req.category === 'Leave' && req.leaveSubType ? ` · ${req.leaveSubType}` : ''}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                                {format(new Date(req.startDate), 'dd MMM')}
+                                                {req.endDate !== req.startDate ? ` – ${format(new Date(req.endDate), 'dd MMM')}` : ''}
+                                                {req.destination ? ` · ✈ ${req.destination}` : ''}
+                                                {req.location ? ` · 📍 ${req.location}` : ''}
+                                                {' · '}<span className="italic">{req.reason}</span>
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                            <button
+                                                onClick={() => handleRequestDecision(req._id, 'Approved')}
+                                                disabled={isDeciding}
+                                                className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-50"
+                                            >
+                                                {isDeciding ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                                                Approve
+                                            </button>
+                                            <button
+                                                onClick={() => handleRequestDecision(req._id, 'Rejected')}
+                                                disabled={isDeciding}
+                                                className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50"
+                                            >
+                                                {isDeciding ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                                                Deny
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                    )}
+                </div>
             </div>
         </div>
     );

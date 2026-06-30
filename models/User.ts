@@ -29,7 +29,7 @@ const UserSchema: Schema = new Schema(
         email: { type: String, required: true, unique: true },
         password: { type: String, select: false },
         phone: { type: String },
-        personalEmail: { type: String },
+        companyEmails: { type: [String], default: [] },
         image: { type: String },
         role: { type: String, enum: ['user', 'admin', 'vendor', 'customer', 'super-admin', 'manager', 'staff'], default: 'user' }, // Flexible role for UI
         dept: { type: String, default: 'General' },

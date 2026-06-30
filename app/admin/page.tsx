@@ -1,73 +1,82 @@
 "use client";
 
-import { Users, Settings, Shield, Globe, Database, ShieldAlert, Server, Activity, Cpu, ArrowUpRight, Bell } from 'lucide-react';
+import { Users, ShieldAlert, Server, Activity, Cpu, ArrowUpRight, Bell, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getAdminDashboardData } from '@/app/actions/admin';
 import { getUpcomingAlerts } from '@/app/actions/activity/calendar';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function AdminDashboard() {
-    const [stats, setStats] = useState({
-        activeUsers: 0,
-        securityAlerts: 0,
-        systemHealth: "100%",
-        serverLoad: "0%"
-    });
+    const [stats, setStats] = useState({ activeUsers: 0, securityAlerts: 0, systemHealth: '100%', serverLoad: '0%' });
     const [logs, setLogs] = useState<any[]>([]);
     const [alerts, setAlerts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const load = async () => {
-            const res = await getAdminDashboardData();
-            if (res.success && res.data) {
-                setStats(res.data.stats);
-                setLogs(res.data.logs);
-            }
-            const alertsRes = await getUpcomingAlerts();
-            if (alertsRes.success) {
-                setAlerts(alertsRes.data);
-            }
+            const [res, alertsRes] = await Promise.all([
+                getAdminDashboardData(),
+                getUpcomingAlerts(),
+            ]);
+            if (res.success && res.data) { setStats(res.data.stats); setLogs(res.data.logs); }
+            if (alertsRes.success) setAlerts(alertsRes.data);
             setLoading(false);
         };
         load();
     }, []);
 
-    const statConfig = [
-        { label: "Active Users", value: stats.activeUsers.toString(), sub: "Total", icon: Users, color: "bg-white", textColor: "text-blue-600", borderColor: "border-border" },
-        { label: "System Health", value: stats.systemHealth, sub: "Stable", icon: Activity, color: "bg-white", textColor: "text-green-600", borderColor: "border-border" },
-        { label: "Server Load", value: stats.serverLoad, sub: "Optimal", icon: Cpu, color: "bg-white", textColor: "text-purple-600", borderColor: "border-border" },
-        { label: "Security Alerts", value: stats.securityAlerts.toString(), sub: stats.securityAlerts > 0 ? "Warning" : "All Clear", icon: ShieldAlert, color: "bg-white", textColor: "text-green-600", borderColor: "border-border" },
+    const statCards = [
+        { label: 'Active Users', value: stats.activeUsers.toString(), sub: 'Total registered', icon: Users, accent: 'text-sky-600 bg-sky-50' },
+        { label: 'System Health', value: stats.systemHealth, sub: 'All systems nominal', icon: Activity, accent: 'text-emerald-600 bg-emerald-50' },
+        { label: 'Server Load', value: stats.serverLoad, sub: 'Current utilisation', icon: Cpu, accent: 'text-primary bg-primary/8' },
+        { label: 'Security Alerts', value: stats.securityAlerts.toString(), sub: stats.securityAlerts > 0 ? 'Requires attention' : 'All clear', icon: ShieldAlert, accent: stats.securityAlerts > 0 ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50' },
     ];
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
+    const quickLinks = [
+        { href: '/admin/audit', icon: ShieldAlert, label: 'Audit & Compliance', desc: 'View system logs & security events', color: 'bg-teal-50 text-teal-600' },
+        { href: '/admin/access-control', icon: Users, label: 'Access Control', desc: 'Manage roles, permissions and user access', color: 'bg-sky-50 text-sky-600' },
+        { href: '/admin/security', icon: Server, label: 'Security Settings', desc: 'Configure IP rules and admin access', color: 'bg-primary/8 text-primary' },
+    ];
+
+    const parsePercent = (s: string) => Math.min(100, Math.max(0, parseInt(s) || 0));
+
+    if (loading) return (
+        <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+    );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">System Overview</h1>
-                <p className="text-gray-500">Monitor system health and performance.</p>
+                <h1 className="text-xl font-bold text-foreground">System Overview</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">Monitor system health, logs and administrative controls.</p>
             </div>
 
-            {/* Alerts Section */}
             {alerts.length > 0 && (
-                <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
                     {alerts.map((alert: any) => (
-                        <div key={alert._id || alert.id} className="flex items-center justify-between bg-amber-50 border border-amber-200 p-4 rounded-xl shadow-sm">
+                        <div key={alert._id || alert.id} className="flex items-center justify-between bg-amber-50 border border-amber-200 p-4 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
-                                    <Bell className="w-5 h-5" />
+                                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg shrink-0">
+                                    <Bell className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-amber-900 text-sm">{alert.title}</h3>
-                                    <p className="text-amber-700 text-xs">
-                                        Starting at {format(new Date(alert.start), 'HH:mm')} ({format(new Date(alert.start), 'MMM d')})
+                                    <p className="font-semibold text-amber-900 text-sm">{alert.title}</p>
+                                    <p className="text-amber-700 text-xs mt-0.5">
+                                        {format(new Date(alert.start), 'HH:mm · MMM d')}
                                     </p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="sm" className="text-amber-700 hover:bg-amber-100" onClick={() => setAlerts(prev => prev.filter(a => (a._id || a.id) !== (alert._id || alert.id)))}>
+                            <Button
+                                variant="ghost" size="sm"
+                                className="text-amber-700 hover:bg-amber-100 text-xs"
+                                onClick={() => setAlerts(prev => prev.filter(a => (a._id || a.id) !== (alert._id || alert.id)))}
+                            >
                                 Dismiss
                             </Button>
                         </div>
@@ -75,107 +84,87 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* KPI Cards Standardized */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {statConfig.map((stat, idx) => (
-                    <div key={idx} className={`glass-card p-5 rounded-xl border ${stat.borderColor} flex flex-col justify-between h-32`}>
-                        <div className="flex justify-between items-start">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {statCards.map(({ label, value, sub, icon: Icon, accent }) => (
+                    <div key={label} className="bg-card border border-border rounded-xl p-5 flex flex-col justify-between h-28">
+                        <div className="flex items-start justify-between">
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
+                                <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                                <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
                             </div>
-                            <div className={`p-2 rounded-lg ${stat.color}`}>
-                                <stat.icon className={`w-5 h-5 ${stat.textColor}`} />
+                            <div className={cn('p-2 rounded-lg', accent)}>
+                                <Icon className="w-4 h-4" />
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                            <ArrowUpRight className="w-3 h-3 text-gray-400" />
-                            {stat.sub}
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <ArrowUpRight className="w-3 h-3" />{sub}
                         </p>
                     </div>
                 ))}
             </div>
 
-            {/* Quick Access */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <a href="/admin/audit" className="glass-card p-4 rounded-xl border border-gray-100 hover:border-primary/50 hover:shadow-md transition-all flex items-center gap-4 group">
-                    <div className="p-3 rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition-colors">
-                        <ShieldAlert className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900">Audit & Compliance</h3>
-                        <p className="text-xs text-gray-500">View system logs & security</p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-primary ml-auto" />
-                </a>
-
-                <a href="/admin/audit" className="glass-card p-4 rounded-xl border border-gray-100 hover:border-primary/50 hover:shadow-md transition-all flex items-center gap-4 group col-span-1 md:col-span-3 lg:col-span-1">
-                    <div className="p-3 rounded-lg bg-teal-50 text-teal-600 group-hover:bg-teal-100 transition-colors">
-                        <ShieldAlert className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-gray-900">Audit & Compliance</h3>
-                        <p className="text-xs text-gray-500">View system logs & security</p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-primary ml-auto" />
-                </a>
+            <div className="grid md:grid-cols-3 gap-4">
+                {quickLinks.map(({ href, icon: Icon, label, desc, color }) => (
+                    <Link key={href} href={href} className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 hover:shadow-sm transition-all flex items-center gap-4 group">
+                        <div className={cn('p-2.5 rounded-lg shrink-0', color)}>
+                            <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="font-semibold text-foreground text-sm">{label}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{desc}</p>
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary ml-auto shrink-0 transition-colors" />
+                    </Link>
+                ))}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-                <div className="glass-card p-6 rounded-xl border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Recent System Logs</h3>
-                    <div className="space-y-4">
-                        {logs.length === 0 && <p className="text-sm text-gray-500">No recent logs.</p>}
-                        {logs.map((log, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-background rounded-lg border border-gray-100">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{log.event}</p>
-                                    <p className="text-xs text-gray-500">{log.time} • {log.user}</p>
+            <div className="grid md:grid-cols-2 gap-5">
+                <div className="bg-card border border-border rounded-xl p-5">
+                    <h3 className="font-bold text-foreground mb-4">Recent System Logs</h3>
+                    {logs.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">No recent logs.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {logs.map((log: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{log.event}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{log.time} · {log.user}</p>
+                                    </div>
+                                    <span className={cn(
+                                        'text-[10px] font-bold px-2 py-0.5 rounded-full ml-3 shrink-0',
+                                        log.status === 'Success' ? 'bg-emerald-50 text-emerald-700' :
+                                        log.status === 'Warning' ? 'bg-amber-50 text-amber-700' :
+                                        'bg-sky-50 text-sky-700'
+                                    )}>
+                                        {log.status}
+                                    </span>
                                 </div>
-                                <span className={`text-xs px-2 py-1 rounded font-medium
-                                    ${log.status === 'Success' ? 'bg-green-100 text-green-700' :
-                                        log.status === 'Warning' ? 'bg-orange-100 text-orange-700' :
-                                            'bg-blue-100 text-blue-700'}`}>
-                                    {log.status}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                <div className="glass-card p-6 rounded-xl bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-lg">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <Server className="w-5 h-5 text-green-400" />
-                        Server Status
+                <div className="bg-card border border-border rounded-xl p-5">
+                    <h3 className="font-bold text-foreground mb-5 flex items-center gap-2">
+                        <Server className="w-4 h-4 text-primary" /> Server Status
                     </h3>
-                    <div className="space-y-6">
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span className="text-gray-300">CPU Usage</span>
-                                <span className="font-bold">34%</span>
+                    <div className="space-y-5">
+                        {[
+                            { label: 'CPU Usage', value: parsePercent(stats.serverLoad), color: 'bg-sky-500' },
+                            { label: 'Memory Usage', value: 62, color: 'bg-primary' },
+                            { label: 'Storage Used', value: 28, color: 'bg-emerald-500' },
+                        ].map(({ label, value, color }) => (
+                            <div key={label}>
+                                <div className="flex justify-between text-sm mb-1.5">
+                                    <span className="text-muted-foreground text-xs">{label}</span>
+                                    <span className="font-bold text-foreground text-xs">{value}%</span>
+                                </div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${value}%` }} />
+                                </div>
                             </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white w-[34%]"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span className="text-gray-300">Memory Usage</span>
-                                <span className="font-bold">62%</span>
-                            </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white w-[62%]"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span className="text-gray-300">Storage</span>
-                                <span className="font-bold">28%Used</span>
-                            </div>
-                            <div className="h-2 bg-white rounded-full overflow-hidden">
-                                <div className="h-full bg-white w-[28%]"></div>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>

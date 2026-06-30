@@ -3,47 +3,46 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Target, BarChart2, CalendarDays, ArrowUpRight, LayoutDashboard, Settings, UserPlus } from 'lucide-react';
+import { Target, BarChart2, CalendarDays, ArrowUpRight, LayoutDashboard, Settings, UserPlus, BookOpen, ClipboardList } from 'lucide-react';
 
 const goalsLinks = [
-    { name: 'Dashboard', href: '/goals', icon: Target },
+    { name: 'Dashboard', href: '/goals', icon: LayoutDashboard, exact: true },
     { name: 'Strategic Plan', href: '/goals/plan', icon: CalendarDays },
-    { name: 'KPI Reports', href: '/goals/kpi', icon: BarChart2 },
-    { name: 'Analytics Board', href: '/goals/board', icon: LayoutDashboard },
-    { name: 'KPI Library', href: '/goals/templates', icon: Target },
+    { name: 'My KPIs', href: '/goals/kpi', icon: Target },
     { name: 'Assign', href: '/goals/assign', icon: UserPlus },
+    { name: 'KPI Library', href: '/goals/templates', icon: BookOpen },
+    { name: 'Board', href: '/goals/board', icon: BarChart2 },
     { name: 'Reviews', href: '/goals/review', icon: ArrowUpRight },
+    { name: 'Reports', href: '/kpi/tracker', icon: ClipboardList },
     { name: 'Admin View', href: '/goals/admin', icon: Settings },
 ];
 
-export default function GoalsLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function GoalsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
     return (
         <div className="flex flex-col h-full gap-6">
-            <div className="flex items-center gap-6 border-b pb-4 overflow-x-auto">
+            <nav className="flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar">
                 {goalsLinks.map((link) => {
                     const Icon = link.icon;
-                    const isActive = pathname === link.href;
+                    const isActive = link.exact ? pathname === link.href : pathname === link.href || pathname?.startsWith(link.href + '/');
                     return (
                         <Link
-                            key={link.name}
+                            key={link.href}
                             href={link.href}
                             className={cn(
-                                "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
-                                isActive ? "text-primary" : "text-muted-foreground"
+                                "flex items-center gap-2 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150 -mb-px",
+                                isActive
+                                    ? "border-primary text-primary"
+                                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                             )}
                         >
-                            <Icon className="w-4 h-4" />
+                            <Icon className="w-3.5 h-3.5 shrink-0" />
                             {link.name}
                         </Link>
                     );
                 })}
-            </div>
+            </nav>
             <div className="flex-1 h-full min-h-0 overflow-y-auto">
                 {children}
             </div>
