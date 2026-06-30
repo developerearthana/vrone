@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
     Pin, PinOff, Palette, Check, Trash2, Calendar as CalIcon,
     Loader2, Plus, Archive, RotateCcw, ChevronDown, ChevronUp,
-    AlignLeft, Square, CheckSquare, Users, User, ChevronRight,
+    AlignLeft, Square, CheckSquare, Users, User, ChevronRight, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -276,45 +276,95 @@ function QuickAdd({ onAdd, teamId }: {
     );
 }
 
-// ─── Team task row (kanban-style column view) ─────────────────────────────────
+// ─── Team task card (Trello-style) ────────────────────────────────────────────
 function TeamTaskRow({ task, onOpen }: { task: Task; onOpen: (t: Task) => void }) {
     const cfg = PRIORITY_CFG[task.priority];
     const isDone = task.status === 'Done';
     const checklist = task.checklist || [];
     const doneCount = checklist.filter(i => i.completed).length;
+    const tags = task.tags || [];
+
+    const priorityBorder =
+        task.priority === 'High'   ? 'border-l-red-500' :
+        task.priority === 'Medium' ? 'border-l-amber-400' :
+                                     'border-l-emerald-500';
+
+    const dueDateEl = task.dueDate ? (() => {
+        const d = new Date(task.dueDate);
+        const overdue = !isDone && isPast(d) && !isToday(d);
+        const today   = isToday(d);
+        return (
+            <span className={cn(
+                'inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                overdue ? 'bg-red-100 text-red-600' :
+                today   ? 'bg-amber-100 text-amber-700' :
+                          'bg-muted text-muted-foreground',
+            )}>
+                <CalIcon className="w-2.5 h-2.5" />{format(d, 'dd MMM')}
+            </span>
+        );
+    })() : null;
 
     return (
         <motion.div
-            layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }} transition={{ duration: 0.12 }}
+            layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.13 }}
             onClick={() => onOpen(task)}
-            className="group bg-card border border-border rounded-xl p-3 cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all"
+            className={cn(
+                'group bg-white border border-border/70 border-l-4 rounded-xl p-3 cursor-pointer select-none',
+                'hover:shadow-md hover:border-r-primary/20 hover:border-t-primary/20 hover:border-b-primary/20 transition-all',
+                priorityBorder,
+            )}
         >
+            {/* Title */}
             <p className={cn('text-sm font-semibold text-foreground leading-snug', isDone && 'line-through text-muted-foreground')}>
                 {task.title}
             </p>
-            {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
+
+            {/* Description */}
+            {task.description && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{task.description}</p>
+            )}
+
+            {/* Checklist progress bar */}
             {checklist.length > 0 && (
-                <div className="mt-2">
-                    <div className="w-full bg-muted rounded-full h-1">
-                        <div className="bg-primary h-1 rounded-full" style={{ width: `${Math.round((doneCount / checklist.length) * 100)}%` }} />
+                <div className="mt-2 space-y-0.5">
+                    <div className="w-full bg-muted rounded-full h-1.5">
+                        <div
+                            className={cn('h-1.5 rounded-full transition-all', isDone ? 'bg-emerald-400' : 'bg-primary')}
+                            style={{ width: `${Math.round((doneCount / checklist.length) * 100)}%` }}
+                        />
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{doneCount}/{checklist.length} items</p>
+                    <p className="text-[10px] text-muted-foreground">{doneCount}/{checklist.length} items</p>
                 </div>
             )}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className={cn('flex items-center gap-1 text-[10px] font-bold', cfg.text)}>
+
+            {/* Tag chips */}
+            {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                    {tags.slice(0, 2).map(tag => (
+                        <span key={tag} className="text-[10px] bg-black/[0.06] text-foreground/70 px-1.5 py-0.5 rounded-full font-medium">#{tag}</span>
+                    ))}
+                    {tags.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground font-medium">+{tags.length - 2} more</span>
+                    )}
+                </div>
+            )}
+
+            {/* Footer row: priority + due date + status */}
+            <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+                <span className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/[0.05]', cfg.text)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full', cfg.dot)} />{cfg.label}
                 </span>
-                {task.dueDate && (
-                    <span className={cn(
-                        'text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1',
-                        !isDone && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate))
-                            ? 'bg-red-100 text-red-600' : 'bg-muted text-muted-foreground'
-                    )}>
-                        <CalIcon className="w-2.5 h-2.5" />{format(new Date(task.dueDate), 'dd MMM')}
-                    </span>
-                )}
+                {dueDateEl}
+                <span className={cn(
+                    'text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-auto',
+                    task.status === 'To Do'       ? 'bg-slate-100 text-slate-600' :
+                    task.status === 'In Progress'  ? 'bg-blue-100 text-blue-700' :
+                    task.status === 'In Review'    ? 'bg-amber-100 text-amber-700' :
+                    task.status === 'Done'         ? 'bg-emerald-100 text-emerald-700' :
+                                                     'bg-muted text-muted-foreground',
+                )}>{task.status}</span>
             </div>
         </motion.div>
     );
@@ -327,10 +377,20 @@ function TeamTasksBoard({ teams }: { teams: any[] }) {
     const [loading, setLoading] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | undefined>();
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [addingToCol, setAddingToCol] = useState<string | null>(null);
+    const [addTitle, setAddTitle] = useState('');
+    const [addSaving, setAddSaving] = useState(false);
 
     useEffect(() => {
         if (teams.length > 0 && !selectedTeamId) setSelectedTeamId(teams[0]._id);
     }, [teams]);
+
+    const refreshTasks = (teamId: string) => {
+        getTeamTasks(teamId).then(res => {
+            if (res.success) setTasks(res.data as Task[]);
+            else toast.error(res.error);
+        });
+    };
 
     useEffect(() => {
         if (!selectedTeamId) return;
@@ -347,20 +407,65 @@ function TeamTasksBoard({ teams }: { teams: any[] }) {
         return acc;
     }, {} as Record<string, Task[]>);
 
-    const COL_STYLE: Record<string, string> = {
-        'To Do':      'border-slate-200 bg-slate-50/50',
-        'In Progress': 'border-blue-200 bg-blue-50/30',
-        'In Review':  'border-amber-200 bg-amber-50/30',
-        'Done':       'border-emerald-200 bg-emerald-50/30',
-    };
-    const COL_LABEL: Record<string, string> = {
-        'To Do':      'text-slate-600',
-        'In Progress': 'text-blue-600',
-        'In Review':  'text-amber-600',
-        'Done':       'text-emerald-600',
+    const COL_CFG: Record<string, {
+        header: string; bg: string; border: string;
+        badgeBg: string; addBtn: string; dot: string;
+    }> = {
+        'To Do': {
+            header:  'from-slate-600 to-slate-500',
+            bg:      'bg-slate-50',
+            border:  'border-slate-200',
+            badgeBg: 'bg-slate-700/60',
+            addBtn:  'hover:bg-white/20 text-white/90',
+            dot:     'bg-slate-300',
+        },
+        'In Progress': {
+            header:  'from-blue-600 to-blue-500',
+            bg:      'bg-blue-50/30',
+            border:  'border-blue-200',
+            badgeBg: 'bg-blue-700/60',
+            addBtn:  'hover:bg-white/20 text-white/90',
+            dot:     'bg-blue-300',
+        },
+        'In Review': {
+            header:  'from-amber-500 to-amber-400',
+            bg:      'bg-amber-50/30',
+            border:  'border-amber-200',
+            badgeBg: 'bg-amber-600/60',
+            addBtn:  'hover:bg-white/20 text-white/90',
+            dot:     'bg-amber-200',
+        },
+        'Done': {
+            header:  'from-emerald-600 to-emerald-500',
+            bg:      'bg-emerald-50/30',
+            border:  'border-emerald-200',
+            badgeBg: 'bg-emerald-700/60',
+            addBtn:  'hover:bg-white/20 text-white/90',
+            dot:     'bg-emerald-300',
+        },
     };
 
     const selectedTeam = teams.find(t => t._id === selectedTeamId);
+
+    const handleQuickAdd = async (colStatus: string) => {
+        if (!addTitle.trim() || !selectedTeamId) return;
+        setAddSaving(true);
+        const res = await createTask({
+            title: addTitle.trim(),
+            status: colStatus as TaskStatus,
+            priority: 'Medium',
+            teamId: selectedTeamId,
+        } as any);
+        if (res.success) {
+            toast.success('Task added');
+            refreshTasks(selectedTeamId);
+        } else {
+            toast.error(res.error);
+        }
+        setAddTitle('');
+        setAddingToCol(null);
+        setAddSaving(false);
+    };
 
     return (
         <div className="space-y-4">
@@ -372,7 +477,7 @@ function TeamTasksBoard({ teams }: { teams: any[] }) {
                             'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors',
                             selectedTeamId === t._id
                                 ? 'bg-primary text-white border-primary'
-                                : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                                : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground',
                         )}>
                         <Users className="w-3.5 h-3.5" />{t.name}
                         <span className="text-[10px] opacity-70">({(t.members || []).length})</span>
@@ -386,8 +491,7 @@ function TeamTasksBoard({ teams }: { teams: any[] }) {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Members</span>
                     {(selectedTeam.members || []).map((m: any) => (
                         <span key={m._id || m} className="flex items-center gap-1 text-[11px] bg-muted border border-border text-foreground px-2 py-0.5 rounded-full">
-                            <User className="w-3 h-3 text-muted-foreground" />
-                            {m.name || 'Member'}
+                            <User className="w-3 h-3 text-muted-foreground" />{m.name || 'Member'}
                         </span>
                     ))}
                 </div>
@@ -395,32 +499,111 @@ function TeamTasksBoard({ teams }: { teams: any[] }) {
 
             {loading ? (
                 <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-            ) : tasks.length === 0 ? (
-                <div className="text-center py-14 text-muted-foreground border border-dashed border-border rounded-xl">
-                    <Users className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                    <p className="font-semibold text-sm">No tasks for this team yet</p>
-                    <p className="text-xs mt-1">Assign tasks to this team via the task detail modal.</p>
-                </div>
             ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {STATUS_COLS.map(col => (
-                        <div key={col} className={cn('rounded-xl border p-3 space-y-2 min-h-[200px]', COL_STYLE[col])}>
-                            <div className="flex items-center justify-between mb-1">
-                                <p className={cn('text-[10px] font-bold uppercase tracking-widest', COL_LABEL[col])}>{col}</p>
-                                <span className="text-[10px] font-bold text-muted-foreground bg-white/60 border border-border px-1.5 py-0.5 rounded-full">
-                                    {tasksByStatus[col].length}
-                                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {STATUS_COLS.map(col => {
+                        const cfg = COL_CFG[col];
+                        const colTasks = tasksByStatus[col] || [];
+                        const isAdding = addingToCol === col;
+
+                        return (
+                            <div key={col} className={cn('rounded-2xl overflow-hidden border shadow-sm flex flex-col', cfg.bg, cfg.border)}>
+
+                                {/* Column header */}
+                                <div className={cn('bg-gradient-to-r px-3 py-2.5 flex items-center justify-between shrink-0', cfg.header)}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={cn('w-2 h-2 rounded-full shrink-0', cfg.dot)} />
+                                        <span className="text-xs font-bold text-white tracking-wide truncate">{col}</span>
+                                        <span className={cn(
+                                            'text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shrink-0 tabular-nums',
+                                            cfg.badgeBg,
+                                        )}>
+                                            {colTasks.length}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setAddingToCol(isAdding ? null : col); setAddTitle(''); }}
+                                        className={cn('p-1 rounded-lg transition-colors shrink-0 ml-1', cfg.addBtn)}
+                                        title={`Add task to ${col}`}
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                {/* Cards area */}
+                                <div className="flex-1 p-3 space-y-2.5 min-h-[200px]">
+
+                                    {/* Inline quick-add */}
+                                    <AnimatePresence>
+                                        {isAdding && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.14 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="bg-white border border-border rounded-xl p-2.5 shadow-sm mb-0.5">
+                                                    <input
+                                                        autoFocus
+                                                        className="w-full text-sm font-medium text-foreground bg-transparent outline-none placeholder:text-muted-foreground/50 mb-2"
+                                                        placeholder="Card title…"
+                                                        value={addTitle}
+                                                        onChange={e => setAddTitle(e.target.value)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleQuickAdd(col); }
+                                                            if (e.key === 'Escape') { setAddingToCol(null); setAddTitle(''); }
+                                                        }}
+                                                    />
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleQuickAdd(col)}
+                                                            disabled={addSaving || !addTitle.trim()}
+                                                            className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                                        >
+                                                            {addSaving
+                                                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                                                : <Check className="w-3 h-3" />}
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setAddingToCol(null); setAddTitle(''); }}
+                                                            className="p-1 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                                                            title="Cancel"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    {/* Task cards */}
+                                    <AnimatePresence>
+                                        {colTasks.map(t => (
+                                            <TeamTaskRow
+                                                key={t._id}
+                                                task={t}
+                                                onOpen={t => { setSelectedTask(t); setIsDetailOpen(true); }}
+                                            />
+                                        ))}
+                                    </AnimatePresence>
+
+                                    {/* Empty state */}
+                                    {colTasks.length === 0 && !isAdding && (
+                                        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground/35">
+                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-current mb-2" />
+                                            <p className="text-[11px] font-medium">No cards</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <AnimatePresence>
-                                {tasksByStatus[col].map(t => (
-                                    <TeamTaskRow key={t._id} task={t} onOpen={t => { setSelectedTask(t); setIsDetailOpen(true); }} />
-                                ))}
-                            </AnimatePresence>
-                            {tasksByStatus[col].length === 0 && (
-                                <p className="text-[11px] text-muted-foreground/50 text-center pt-4">Empty</p>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
@@ -428,11 +611,7 @@ function TeamTasksBoard({ teams }: { teams: any[] }) {
                 <TaskDetailModal
                     task={selectedTask as any}
                     isOpen={isDetailOpen}
-                    onUpdate={() => {
-                        if (selectedTeamId) {
-                            getTeamTasks(selectedTeamId).then(res => { if (res.success) setTasks(res.data as Task[]); });
-                        }
-                    }}
+                    onUpdate={() => { if (selectedTeamId) refreshTasks(selectedTeamId); }}
                     onClose={() => { setIsDetailOpen(false); }}
                 />
             )}

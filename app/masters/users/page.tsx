@@ -521,7 +521,7 @@ export default function UsersMaster() {
                                     {selectedEmployeeId && (
                                         <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                                            Employee selected — details filled below. You can still edit any field.
+                                            Employee selected — identity details are locked and sourced from the HR record.
                                         </p>
                                     )}
                                 </div>
@@ -607,7 +607,14 @@ export default function UsersMaster() {
 
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Full Name <span className="text-red-500">*</span></Label>
-                                <Input required value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Arjun Sharma" />
+                                {(selectedEmployeeId !== '' || currentUser !== null) ? (
+                                    <div className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground font-medium flex items-center gap-2">
+                                        <Lock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                                        {formData.name || 'Not selected yet'}
+                                    </div>
+                                ) : (
+                                    <Input required value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Arjun Sharma" />
+                                )}
                             </div>
 
                             <div className="space-y-1.5">
@@ -615,9 +622,16 @@ export default function UsersMaster() {
                                     Personal Email — Login ID <span className="text-red-500">*</span>
                                 </Label>
                                 <p className="text-[11px] text-muted-foreground -mt-0.5">Used to log in to Vrone ERP. Usually the personal email, not the company email.</p>
-                                <Input required type="email" value={formData.email}
-                                    onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
-                                    placeholder="personal@gmail.com" />
+                                {(selectedEmployeeId !== '' || currentUser !== null) ? (
+                                    <div className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground font-medium flex items-center gap-2">
+                                        <Lock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                                        {formData.email || 'Not selected yet'}
+                                    </div>
+                                ) : (
+                                    <Input required type="email" value={formData.email}
+                                        onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
+                                        placeholder="personal@gmail.com" />
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -669,9 +683,112 @@ export default function UsersMaster() {
                                 </h3>
                             </div>
 
+                            {/* Department — frozen when employee selected or in edit mode */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Department</Label>
+                                {(selectedEmployeeId !== '' || currentUser !== null) ? (
+                                    <div className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground font-medium flex items-center gap-2">
+                                        <Lock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                                        {formData.dept || <span className="text-muted-foreground/50 font-normal">Not set</span>}
+                                    </div>
+                                ) : (
+                                    <Select value={formData.dept} onValueChange={v => setFormData(f => ({ ...f, dept: v }))}>
+                                        <SelectTrigger className="text-sm"><SelectValue placeholder="Select department" /></SelectTrigger>
+                                        <SelectContent className="bg-white">
+                                            {departments.length === 0
+                                                ? <SelectItem value="" disabled>No departments — add in Masters › Depts</SelectItem>
+                                                : departments.map(d => <SelectItem key={d._id} value={d.name}>{d.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            </div>
+
+                            {/* Job Title — frozen when employee selected or in edit mode */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Job Title</Label>
+                                {(selectedEmployeeId !== '' || currentUser !== null) ? (
+                                    <div className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground font-medium flex items-center gap-2">
+                                        <Lock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                                        {formData.jobTitle || <span className="text-muted-foreground/50 font-normal">Not set</span>}
+                                    </div>
+                                ) : (
+                                    jobTitles.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <Select value={jobTitleSelect} onValueChange={handleJobTitleSelect}>
+                                                <SelectTrigger className="text-sm"><SelectValue placeholder="Select job title" /></SelectTrigger>
+                                                <SelectContent className="bg-white max-h-[240px]">
+                                                    {jobTitles.map(jt => (
+                                                        <SelectItem key={jt._id} value={jt.value}>{jt.label}</SelectItem>
+                                                    ))}
+                                                    <SelectItem value={CUSTOM_JOB_TITLE}>
+                                                        <span className="italic text-muted-foreground">Enter custom title…</span>
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {jobTitleSelect === CUSTOM_JOB_TITLE && (
+                                                <Input
+                                                    autoFocus
+                                                    value={formData.jobTitle}
+                                                    onChange={e => setFormData(f => ({ ...f, jobTitle: e.target.value }))}
+                                                    placeholder="e.g. Senior Developer"
+                                                />
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <Input value={formData.jobTitle}
+                                            onChange={e => setFormData(f => ({ ...f, jobTitle: e.target.value }))}
+                                            placeholder="e.g. Senior Developer" />
+                                    )
+                                )}
+                                {!selectedEmployeeId && !currentUser && jobTitles.length === 0 && (
+                                    <p className="text-[11px] text-muted-foreground">Add standard titles in Masters › Job Titles for dropdown selection.</p>
+                                )}
+                            </div>
+
+                            {/* Employee Details Panel — shown after employee selection or in edit mode */}
+                            {(() => {
+                                let emp: any = null;
+                                if (selectedEmployeeId) {
+                                    emp = employees.find((e: any) => e._id === selectedEmployeeId);
+                                } else if (currentUser) {
+                                    emp = employees.find((e: any) => e.email === currentUser.email || e.name === currentUser.name);
+                                }
+                                if (!emp) return null;
+                                return (
+                                    <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                            <UserCircle className="w-3.5 h-3.5" /> Employee Details (from HR record)
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                            {[
+                                                ['Employee ID', emp.employeeId],
+                                                ['Phone', emp.phone],
+                                                ['Gender', emp.gender],
+                                                ['Date of Birth', emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString('en-IN') : null],
+                                                ['Blood Group', emp.bloodGroup],
+                                                ['Marital Status', emp.maritalStatus],
+                                                ['Status', emp.status],
+                                                ['Reporting Manager', emp.reportingManager],
+                                            ].filter(([, v]) => v).map(([label, val]) => (
+                                                <div key={label as string}>
+                                                    <span className="text-muted-foreground">{label}: </span>
+                                                    <span className="font-medium text-foreground">{val as string}</span>
+                                                </div>
+                                            ))}
+                                            {emp.address && (
+                                                <div className="col-span-2">
+                                                    <span className="text-muted-foreground">Address: </span>
+                                                    <span className="font-medium text-foreground">{emp.address}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">User Role</Label>
+                                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ERP User Role</Label>
                                     <Select value={selectedRoleValue} onValueChange={handleRoleChange}>
                                         <SelectTrigger className="text-sm"><SelectValue placeholder="Select Role" /></SelectTrigger>
                                         <SelectContent className="bg-white max-h-[300px]">
@@ -685,7 +802,7 @@ export default function UsersMaster() {
                                             </SelectGroup>
                                             {roles.length > 0 && (
                                                 <SelectGroup>
-                                                    <SelectLabel>Custom Roles</SelectLabel>
+                                                    <SelectLabel>Custom ERP Roles</SelectLabel>
                                                     {roles.map(r => (
                                                         <SelectItem key={r._id} value={`custom:${r._id}`}>{r.name}</SelectItem>
                                                     ))}
@@ -705,53 +822,6 @@ export default function UsersMaster() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Department</Label>
-                                <Select value={formData.dept} onValueChange={v => setFormData(f => ({ ...f, dept: v }))}>
-                                    <SelectTrigger className="text-sm"><SelectValue placeholder="Select department" /></SelectTrigger>
-                                    <SelectContent className="bg-white">
-                                        {departments.length === 0
-                                            ? <SelectItem value="" disabled>No departments — add in Masters › Depts</SelectItem>
-                                            : departments.map(d => <SelectItem key={d._id} value={d.name}>{d.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Job Title — dropdown from master + custom fallback */}
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Job Title</Label>
-                                {jobTitles.length > 0 ? (
-                                    <div className="space-y-2">
-                                        <Select value={jobTitleSelect} onValueChange={handleJobTitleSelect}>
-                                            <SelectTrigger className="text-sm"><SelectValue placeholder="Select job title" /></SelectTrigger>
-                                            <SelectContent className="bg-white max-h-[240px]">
-                                                {jobTitles.map(jt => (
-                                                    <SelectItem key={jt._id} value={jt.value}>{jt.label}</SelectItem>
-                                                ))}
-                                                <SelectItem value={CUSTOM_JOB_TITLE}>
-                                                    <span className="italic text-muted-foreground">Enter custom title…</span>
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        {jobTitleSelect === CUSTOM_JOB_TITLE && (
-                                            <Input
-                                                autoFocus
-                                                value={formData.jobTitle}
-                                                onChange={e => setFormData(f => ({ ...f, jobTitle: e.target.value }))}
-                                                placeholder="e.g. Senior Developer"
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <Input value={formData.jobTitle}
-                                        onChange={e => setFormData(f => ({ ...f, jobTitle: e.target.value }))}
-                                        placeholder="e.g. Senior Developer" />
-                                )}
-                                {jobTitles.length === 0 && (
-                                    <p className="text-[11px] text-muted-foreground">Add standard titles in Masters › Job Titles for dropdown selection.</p>
-                                )}
                             </div>
                         </div>
 

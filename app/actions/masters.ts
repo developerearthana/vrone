@@ -63,45 +63,86 @@ export async function deleteMaster(id: string) {
 }
 
 /**
- * Seed initial masters if they don't exist
+ * Seed initial masters if they don't exist, checking per-type to avoid blocking new types
  */
 export async function seedMasters() {
     await connectToDatabase();
 
-    const count = await Master.countDocuments();
-    if (count > 0) return { success: true, message: "Masters already seeded" };
+    const seeded: string[] = [];
 
-    const initialData = [
-        // Contact Types
-        { type: "ContactType", label: "Client", value: "Client", order: 1, color: "bg-blue-50 text-blue-700 border-blue-100" },
-        { type: "ContactType", label: "Vendor", value: "Vendor", order: 2, color: "bg-purple-50 text-purple-700 border-purple-100" },
-        { type: "ContactType", label: "Lead", value: "Lead", order: 3, color: "bg-orange-50 text-orange-700 border-orange-100" },
-        { type: "ContactType", label: "Partner", value: "Partner", order: 4, color: "bg-green-50 text-green-700 border-green-100" },
-        { type: "ContactType", label: "Consultant", value: "Consultant", order: 5, color: "bg-gray-50 text-gray-700 border-gray-100" },
+    // ContactType
+    const contactTypeCount = await Master.countDocuments({ type: 'ContactType' });
+    if (contactTypeCount === 0) {
+        await Master.insertMany([
+            { type: "ContactType", label: "Client", value: "Client", order: 1, color: "bg-blue-50 text-blue-700 border-blue-100", isActive: true },
+            { type: "ContactType", label: "Vendor", value: "Vendor", order: 2, color: "bg-purple-50 text-purple-700 border-purple-100", isActive: true },
+            { type: "ContactType", label: "Lead", value: "Lead", order: 3, color: "bg-orange-50 text-orange-700 border-orange-100", isActive: true },
+            { type: "ContactType", label: "Partner", value: "Partner", order: 4, color: "bg-green-50 text-green-700 border-green-100", isActive: true },
+            { type: "ContactType", label: "Consultant", value: "Consultant", order: 5, color: "bg-gray-50 text-gray-700 border-gray-100", isActive: true },
+        ]);
+        seeded.push('ContactType');
+    }
 
-        // Vendor Categories
-        { type: "VendorCategory", label: "Manpower", value: "Manpower", order: 1 },
-        { type: "VendorCategory", label: "Carpenter", value: "Carpenter", order: 2 },
-        { type: "VendorCategory", label: "Plumbing", value: "Plumbing", order: 3 },
-        { type: "VendorCategory", label: "Civil Works", value: "Civil Works", order: 4 },
-        { type: "VendorCategory", label: "Electrical", value: "Electrical", order: 5 },
-        { type: "VendorCategory", label: "Service Provider", value: "Service Provider", order: 6 },
-        { type: "VendorCategory", label: "Material Supplier", value: "Material Supplier", order: 7 },
+    // VendorCategory
+    const vendorCategoryCount = await Master.countDocuments({ type: 'VendorCategory' });
+    if (vendorCategoryCount === 0) {
+        await Master.insertMany([
+            { type: "VendorCategory", label: "Manpower", value: "Manpower", order: 1, isActive: true },
+            { type: "VendorCategory", label: "Carpenter", value: "Carpenter", order: 2, isActive: true },
+            { type: "VendorCategory", label: "Plumbing", value: "Plumbing", order: 3, isActive: true },
+            { type: "VendorCategory", label: "Civil Works", value: "Civil Works", order: 4, isActive: true },
+            { type: "VendorCategory", label: "Electrical", value: "Electrical", order: 5, isActive: true },
+            { type: "VendorCategory", label: "Service Provider", value: "Service Provider", order: 6, isActive: true },
+            { type: "VendorCategory", label: "Material Supplier", value: "Material Supplier", order: 7, isActive: true },
+        ]);
+        seeded.push('VendorCategory');
+    }
 
+    // LeadStatus
+    const leadStatusCount = await Master.countDocuments({ type: 'LeadStatus' });
+    if (leadStatusCount === 0) {
+        await Master.insertMany([
+            { type: "LeadStatus", label: "New", value: "New", order: 1, color: "bg-blue-50 text-blue-700 border-blue-100", isDefault: true, isActive: true },
+            { type: "LeadStatus", label: "Contacted", value: "Contacted", order: 2, color: "bg-amber-50 text-amber-700 border-amber-100", isActive: true },
+            { type: "LeadStatus", label: "Qualified", value: "Qualified", order: 3, color: "bg-emerald-50 text-emerald-700 border-emerald-100", isActive: true },
+            { type: "LeadStatus", label: "Lost", value: "Lost", order: 4, color: "bg-red-50 text-red-700 border-red-100", isActive: true },
+            { type: "LeadStatus", label: "Converted", value: "Converted", order: 5, color: "bg-green-50 text-green-700 border-green-100", isActive: true },
+        ]);
+        seeded.push('LeadStatus');
+    }
 
-        // Lead Status
-        { type: "LeadStatus", label: "New", value: "New", order: 1, color: "bg-blue-50 text-blue-700 border-blue-100", isDefault: true },
-        { type: "LeadStatus", label: "Contacted", value: "Contacted", order: 2, color: "bg-amber-50 text-amber-700 border-amber-100" },
-        { type: "LeadStatus", label: "Qualified", value: "Qualified", order: 3, color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
-        { type: "LeadStatus", label: "Lost", value: "Lost", order: 4, color: "bg-red-50 text-red-700 border-red-100" },
-        { type: "LeadStatus", label: "Converted", value: "Converted", order: 5, color: "bg-green-50 text-green-700 border-green-100" },
+    // ContactStatus
+    const contactStatusCount = await Master.countDocuments({ type: 'ContactStatus' });
+    if (contactStatusCount === 0) {
+        await Master.insertMany([
+            { type: "ContactStatus", label: "Active", value: "Active", order: 1, color: "bg-emerald-500", isDefault: true, isActive: true },
+            { type: "ContactStatus", label: "Inactive", value: "Inactive", order: 2, color: "bg-gray-300", isActive: true },
+            { type: "ContactStatus", label: "New", value: "New", order: 3, color: "bg-blue-500", isActive: true },
+        ]);
+        seeded.push('ContactStatus');
+    }
 
-        // Contact Status
-        { type: "ContactStatus", label: "Active", value: "Active", order: 1, color: "bg-emerald-500", isDefault: true },
-        { type: "ContactStatus", label: "Inactive", value: "Inactive", order: 2, color: "bg-gray-300" },
-        { type: "ContactStatus", label: "New", value: "New", order: 3, color: "bg-blue-500" },
-    ];
+    // JobTitle
+    const jobTitleCount = await Master.countDocuments({ type: 'JobTitle' });
+    if (jobTitleCount === 0) {
+        const jobTitles = [
+            'Founder Director', 'MD (Managing Director)', 'Head', 'Director', 'Manager',
+            'Supervisor', 'Senior', 'Junior', 'Executive', 'CEO', 'CTO', 'COO',
+            'HR Executive', 'Project Manager', 'Site Engineer', 'Accountant', 'Architect',
+        ];
+        await Master.insertMany(jobTitles.map((label, index) => ({
+            type: 'JobTitle',
+            label,
+            value: label,
+            order: index + 1,
+            isActive: true,
+        })));
+        seeded.push('JobTitle');
+    }
 
-    await Master.insertMany(initialData);
-    return { success: true, message: "Masters seeded successfully" };
+    if (seeded.length === 0) {
+        return { success: true, message: 'Masters already seeded' };
+    }
+
+    return { success: true, message: `Seeded: ${seeded.join(', ')}` };
 }

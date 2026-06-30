@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { seedRoles } from '@/app/actions/role';
-import { seedDefaults } from '@/app/actions/organization';
+import { seedDefaults, seedDepartments } from '@/app/actions/organization';
+import { seedMasters } from '@/app/actions/masters';
 
 export async function GET() {
     const session = await auth();
@@ -21,11 +22,19 @@ export async function GET() {
         const orgRes = await seedDefaults();
         if (!orgRes.success) throw new Error("Org seeding failed: " + orgRes.error);
 
+        console.log("Seeding Masters...");
+        const mastersRes = await seedMasters();
+
+        console.log("Seeding Departments...");
+        const deptsRes = await seedDepartments();
+
         return NextResponse.json({
             success: true,
-            message: "Roles and Departments seeded successfully",
+            message: "Seeding complete",
             roles: roleRes.count,
-            org: orgRes.createdData
+            org: orgRes.createdData,
+            masters: mastersRes.message,
+            departments: deptsRes.message,
         });
     } catch (error: any) {
         console.error("Seeding Error:", error);

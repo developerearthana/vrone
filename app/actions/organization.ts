@@ -248,6 +248,43 @@ export const deleteTeam = createJSONAction(z.object({ id: z.string() }), async (
     return { success: true };
 });
 
+export async function seedDepartments() {
+    await connectToDatabase();
+
+    const company = await Company.findOne();
+    if (!company) return { success: false, error: 'No company found' };
+
+    const sub = await Subsidiary.findOne({ companyId: company._id });
+    if (!sub) return { success: false, error: 'No subsidiary found. Visit Masters → Subsidiaries first.' };
+
+    const depts = [
+        { name: 'IT', code: 'IT' },
+        { name: 'Accounts', code: 'ACC' },
+        { name: 'Architecture', code: 'ARCH' },
+        { name: 'HR', code: 'HR' },
+        { name: 'Operations', code: 'OPS' },
+        { name: 'Construction', code: 'CONST' },
+        { name: 'Projects', code: 'PROJ' },
+        { name: 'Sales & Marketing', code: 'SALES' },
+        { name: 'Admin', code: 'ADMIN' },
+        { name: 'Design', code: 'DESIGN' },
+    ];
+
+    const existingNames = (await Department.find({}, 'name').lean()).map((d: any) => d.name);
+    const toInsert = depts.filter(d => !existingNames.includes(d.name));
+    if (toInsert.length === 0) return { success: true, message: 'Departments already seeded' };
+
+    await Department.insertMany(toInsert.map(d => ({
+        subsidiaryId: sub._id,
+        name: d.name,
+        code: d.code,
+        employees: [],
+    })));
+
+    revalidatePath('/masters/departments');
+    return { success: true, message: `${toInsert.length} departments seeded` };
+}
+
 export const seedDefaults = async () => {
     try {
         await connectToDatabase();
