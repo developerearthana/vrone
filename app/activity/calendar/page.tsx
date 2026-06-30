@@ -120,7 +120,7 @@ export default function UnifiedCalendarPage() {
     }, [userId, currentDate, isAdmin]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
-    useEffect(() => { getEmployees().then(e => setEmployees(e || [])); }, []);
+    useEffect(() => { getEmployees().then(e => setEmployees(e || [])).catch(() => setEmployees([])); }, []);
 
     // ── Day event helpers ──────────────────────────────────────
 

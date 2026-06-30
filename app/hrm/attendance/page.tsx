@@ -20,6 +20,13 @@ export default function AttendancePage() {
     const [punchInTime, setPunchInTime] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'calendar' | 'reports'>('calendar');
     const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+    const [clockNow, setClockNow] = useState(new Date());
+
+    // Tick the clock every second
+    useEffect(() => {
+        const id = setInterval(() => setClockNow(new Date()), 1000);
+        return () => clearInterval(id);
+    }, []);
 
     // Load on mount AND whenever month changes.
     // Don't gate on session.user.id — the server action reads session itself.
@@ -149,7 +156,7 @@ export default function AttendancePage() {
                                 <p className="text-sm text-gray-500 font-medium mt-1">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-3xl font-mono font-bold text-gray-900 tracking-tight">{format(new Date(), 'HH:mm')}</p>
+                                <p className="text-3xl font-mono font-bold text-gray-900 tracking-tight">{format(clockNow, 'HH:mm')}</p>
                             </div>
                         </div>
 

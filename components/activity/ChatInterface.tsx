@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    Send, User as UserIcon, Search, MoreVertical, Paperclip, Smile,
+    Send, Search, MoreVertical, Paperclip, Smile,
     Check, CheckCheck, Plus, Trash2, X, Users, Archive, Phone,
     Loader2, ArrowLeft, Bold, Italic, Strikethrough, Code,
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import {
     getUsersForChat, clearChatHistory, deleteConversation, deleteAllConversations, markAsRead,
 } from '@/app/actions/activity/chat';
 import { getTeams } from '@/app/actions/organization';
-import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { useSession } from 'next-auth/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';

@@ -9,10 +9,10 @@ import { revalidatePath } from 'next/cache';
 
 export async function uploadFile(formData: FormData) {
     try {
-        console.log("Uploading file...");
+
         await connectToDatabase();
         const session = await auth();
-        console.log("Upload Session:", session?.user?.id);
+
         if (!session?.user?.id) throw new Error('Unauthorized');
 
         const file = formData.get('file') as File;

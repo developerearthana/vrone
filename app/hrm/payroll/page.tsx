@@ -101,12 +101,17 @@ export default function EnhancedPayrollPage() {
     const handleGenerateAll = async () => {
         if (!confirm(`Generate payroll for ALL employees for ${MONTHS[selectedMonth]} ${selectedYear}?`)) return;
         setGeneratingAll(true);
-        let count = 0;
-        for (const emp of employees.filter(e => e.status === 'Active')) {
-            const res = await generatePayrollForEmployee(emp._id, MONTHS[selectedMonth], selectedYear);
-            if (res.success) count++;
+        const active = employees.filter(e => e.status === 'Active');
+        const results = await Promise.allSettled(
+            active.map(emp => generatePayrollForEmployee(emp._id, MONTHS[selectedMonth], selectedYear))
+        );
+        const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as any)?.success).length;
+        const failed = active.length - succeeded;
+        if (failed > 0) {
+            toast.error(`${succeeded} generated, ${failed} failed`);
+        } else {
+            toast.success(`Payroll generated for ${succeeded} employees`);
         }
-        toast.success(`Payroll generated for ${count} employees`);
         setGeneratingAll(false);
         loadAll();
     };

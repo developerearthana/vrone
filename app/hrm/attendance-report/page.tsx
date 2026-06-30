@@ -128,9 +128,7 @@ export default function HRMAttendanceAdminPage() {
 
     const stats = {
         present: records.filter(r => r.status === 'Present' || r.status === 'WFH').length,
-        absent: viewMode === 'daily'
-            ? Math.max(0, allUsers.length - records.filter(r => r.status !== 'Absent').length)
-            : records.filter(r => r.status === 'Absent').length,
+        absent: records.filter(r => r.status === 'Absent').length,
         late: records.filter(r => r.punchIn && new Date(r.punchIn).getHours() >= 10).length,
         wfh: records.filter(r => r.workMode === 'Remote').length,
     };
@@ -160,7 +158,9 @@ export default function HRMAttendanceAdminPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `attendance-${format(selectedDate, 'yyyy-MM-dd')}.csv`;
+        a.download = viewMode === 'monthly'
+            ? `attendance-${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}.csv`
+            : `attendance-${format(selectedDate, 'yyyy-MM-dd')}.csv`;
         a.click();
     };
 

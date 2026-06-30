@@ -198,56 +198,6 @@ export const getLiveUsers = async () => {
     }
 };
 
-export const getLeaves = async () => {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) throw new Error("Unauthorized");
-
-        const filter: any = {};
-        const r = session.user.role?.toLowerCase() || '';
-        const isAdminOrHR = r.includes('admin') || r.includes('manager') || r.includes('hr');
-
-        if (!isAdminOrHR) {
-            filter.userId = session.user.id;
-        }
-
-        const data = await hrmService.getLeaveRequests(filter);
-        return { success: true, data };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-const LeaveRequestSchema = z.object({
-    userId: z.string(),
-    userName: z.string(),
-    type: z.enum(['Sick', 'Casual', 'Festival', 'Emergency', 'Other']),
-    startDate: z.string(),
-    endDate: z.string(),
-    reason: z.string().min(1),
-});
-
-export const requestLeave = createJSONAction(LeaveRequestSchema, async (data) => {
-    await hrmService.createLeaveRequest(data);
-    revalidatePath("/hrm/leave");
-    return { success: true };
-});
-
-export const approveLeave = async (id: string, status: 'Approved' | 'Rejected') => {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) throw new Error("Unauthorized");
-
-        const approverName = session.user.name || "Administrator";
-        const approverRole = session.user.role || "Admin";
-        await hrmService.updateLeaveStatus(id, status, session.user.id, approverName, approverRole);
-        revalidatePath("/hrm/leave");
-        return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
 // --- Payroll Actions ---
 
 export const getPayslips = async (employeeId?: string) => {
