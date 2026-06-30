@@ -8,7 +8,7 @@ import { Users, Briefcase, ShoppingBag, UserPlus } from 'lucide-react';
 const links = [
     { name: 'All Contacts', href: '/contacts', icon: Users, exact: true },
     { name: 'Clients', href: '/contacts/clients', icon: Briefcase },
-    { name: 'Vendors', href: '/masters/vendors', icon: ShoppingBag },
+    { name: 'Vendors', href: '/contacts/vendors', icon: ShoppingBag },
     { name: 'Leads', href: '/contacts/leads', icon: UserPlus },
     { name: 'Consultants', href: '/contacts/consultants', icon: Briefcase },
 ];
