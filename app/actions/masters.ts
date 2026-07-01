@@ -49,6 +49,13 @@ export async function updateMaster(id: string, data: Partial<IMaster>) {
             ]);
         }
 
+        if (old?.type === 'Department' && data.label && old.label !== data.label) {
+            await Promise.all([
+                User.updateMany({ dept: old.label }, { $set: { dept: data.label } }),
+                Employee.updateMany({ dept: old.label }, { $set: { dept: data.label } }),
+            ]);
+        }
+
         revalidatePath("/masters/kpi-metrics");
         revalidatePath("/masters/vendor-categories");
         revalidatePath("/masters/vendors");

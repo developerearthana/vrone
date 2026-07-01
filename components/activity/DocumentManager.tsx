@@ -5,6 +5,7 @@ import {
     FileText, Download, Folder, FolderOpen, UploadCloud, Trash2, File,
     FileImage, FileSpreadsheet, Video, Loader2, LayoutGrid, List, Eye,
     Edit2, ChevronRight, ChevronDown, HardDrive, Search, ExternalLink, X, Maximize2, Minimize2,
+    Lock, Users2, Share2, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,9 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getContents, uploadFile, createFolder, deleteItem, renameFolder } from '@/app/actions/activity/documents';
+import { getContents, uploadFile, createFolder, deleteItem, renameFolder, setFolderSharing, getShareableUsers } from '@/app/actions/activity/documents';
 import { getProjects } from '@/app/actions/projects';
 import { getTasks } from '@/app/actions/activity/tasks';
+import { useSession } from 'next-auth/react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,10 @@ interface FolderItem {
     _id: string;
     name: string;
     parentId?: string;
+    createdBy?: string;
+    visibility?: 'private' | 'shared';
+    sharedWith?: string[];
+    isOwner?: boolean;
 }
 
 interface BreadcrumbEntry {
@@ -62,6 +68,29 @@ function formatSize(bytes: number) {
 
 function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function ShareBadge({ folder }: { folder: FolderItem }) {
+    if (folder.visibility === 'shared') {
+        const label = folder.sharedWith?.length ? `Shared · ${folder.sharedWith.length}` : 'Shared';
+        return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                <Users2 className="w-2.5 h-2.5" />{label}
+            </span>
+        );
+    }
+    if (!folder.isOwner) {
+        return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full">
+                <Users2 className="w-2.5 h-2.5" />Shared with you
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-full">
+            <Lock className="w-2.5 h-2.5" />Private
+        </span>
+    );
 }
 
 function FileIcon({ type, size = 'sm' }: { type: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -203,8 +232,43 @@ export default function DocumentManager() {
     const blobUrlRef = useRef<string | null>(null);
     const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
+    const [newFolderVisibility, setNewFolderVisibility] = useState<'private' | 'shared'>('private');
     const [isRenameOpen, setIsRenameOpen] = useState(false);
     const [renameData, setRenameData] = useState<{ id: string; name: string } | null>(null);
+
+    // ── Sharing ──────────────────────────────────────────────────────────────
+    const { data: session } = useSession();
+    const [shareFolder, setShareFolder] = useState<FolderItem | null>(null);
+    const [shareMode, setShareMode] = useState<'private' | 'everyone' | 'specific'>('private');
+    const [shareUsers, setShareUsers] = useState<string[]>([]);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [savingShare, setSavingShare] = useState(false);
+
+    const openShare = async (folder: FolderItem) => {
+        setShareFolder(folder);
+        setShareMode(folder.visibility === 'shared' ? (folder.sharedWith?.length ? 'specific' : 'everyone') : 'private');
+        setShareUsers(folder.sharedWith || []);
+        if (allUsers.length === 0) {
+            const res = await getShareableUsers();
+            if (res.success) setAllUsers(res.data);
+        }
+    };
+
+    const saveShare = async () => {
+        if (!shareFolder) return;
+        setSavingShare(true);
+        const visibility = shareMode === 'private' ? 'private' : 'shared';
+        const sharedWith = shareMode === 'specific' ? shareUsers : [];
+        const res = await setFolderSharing(shareFolder._id, visibility, sharedWith);
+        setSavingShare(false);
+        if (res.success) {
+            toast.success('Sharing updated');
+            setShareFolder(null);
+            fetchContents(currentFolderId);
+        } else {
+            toast.error(res.error || 'Failed to update sharing');
+        }
+    };
 
     // ── Preview Blob URL ─────────────────────────────────────────────────────
     // Browsers block data: URLs in <iframe>/<embed>. Convert to an object URL instead.
@@ -388,10 +452,11 @@ export default function DocumentManager() {
         e.preventDefault();
         if (!newFolderName.trim()) return;
         try {
-            const res = await createFolder(newFolderName, currentFolderId);
+            const res = await createFolder(newFolderName, currentFolderId, newFolderVisibility);
             if (res.success) {
-                toast.success('Folder created');
+                toast.success(newFolderVisibility === 'shared' ? 'Shared folder created' : 'Folder created');
                 setNewFolderName('');
+                setNewFolderVisibility('private');
                 setIsNewFolderOpen(false);
                 fetchContents(currentFolderId);
                 invalidateTreeParent(currentFolderId);
@@ -712,11 +777,21 @@ export default function DocumentManager() {
                                         <td className="px-5 py-3 flex items-center gap-3">
                                             <Folder className="w-4 h-4 text-yellow-500 flex-shrink-0" />
                                             <span className="font-medium text-sm text-foreground">{folder.name}</span>
+                                            <ShareBadge folder={folder} />
                                         </td>
                                         <td className="px-5 py-3 text-xs text-muted-foreground">—</td>
                                         <td className="px-5 py-3 text-xs text-muted-foreground">—</td>
                                         <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
                                             <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {folder.isOwner && (
+                                                    <button
+                                                        onClick={() => openShare(folder)}
+                                                        className="p-1 rounded text-muted-foreground hover:text-emerald-600"
+                                                        title="Share folder"
+                                                    >
+                                                        <Share2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => { setRenameData({ id: folder._id, name: folder.name }); setIsRenameOpen(true); }}
                                                     className="p-1 rounded text-muted-foreground hover:text-blue-500"
@@ -810,10 +885,20 @@ export default function DocumentManager() {
                                             >
                                                 <Folder className="w-10 h-10 text-yellow-500 group-hover:scale-110 transition-transform" />
                                                 <span className="text-xs font-medium text-foreground truncate w-full">{folder.name}</span>
+                                                <ShareBadge folder={folder} />
                                                 <div
                                                     className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 flex gap-0.5"
                                                     onClick={e => e.stopPropagation()}
                                                 >
+                                                    {folder.isOwner && (
+                                                        <button
+                                                            onClick={() => openShare(folder)}
+                                                            className="p-1 hover:bg-card rounded-full text-muted-foreground hover:text-emerald-600"
+                                                            title="Share"
+                                                        >
+                                                            <Share2 className="w-3 h-3" />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => { setRenameData({ id: folder._id, name: folder.name }); setIsRenameOpen(true); }}
                                                         className="p-1 hover:bg-card rounded-full text-muted-foreground hover:text-blue-500"
@@ -904,13 +989,30 @@ export default function DocumentManager() {
                         <DialogTitle>New Folder</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleCreateFolder}>
-                        <div className="py-3">
+                        <div className="py-3 space-y-3">
                             <Input
                                 placeholder="Folder name"
                                 value={newFolderName}
                                 onChange={e => setNewFolderName(e.target.value)}
                                 autoFocus
                             />
+                            <div className="grid grid-cols-2 gap-2">
+                                <button type="button" onClick={() => setNewFolderVisibility('private')}
+                                    className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                                        newFolderVisibility === 'private' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted')}>
+                                    <Lock className="w-3.5 h-3.5" /> Private
+                                </button>
+                                <button type="button" onClick={() => setNewFolderVisibility('shared')}
+                                    className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                                        newFolderVisibility === 'shared' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-border text-muted-foreground hover:bg-muted')}>
+                                    <Users2 className="w-3.5 h-3.5" /> Shared
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                {newFolderVisibility === 'private'
+                                    ? 'Only you can see this folder. You can share it later.'
+                                    : 'Everyone can access this folder. Use Share to limit it to specific people.'}
+                            </p>
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="ghost" size="sm" onClick={() => setIsNewFolderOpen(false)}>
@@ -919,6 +1021,72 @@ export default function DocumentManager() {
                             <Button type="submit" size="sm">Create</Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Share folder */}
+            <Dialog open={!!shareFolder} onOpenChange={o => !o && setShareFolder(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Share2 className="w-4 h-4" /> Share "{shareFolder?.name}"
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-1">
+                        {/* Mode selector */}
+                        <div className="space-y-1.5">
+                            {([
+                                { key: 'private', icon: Lock, title: 'Private', desc: 'Only you can access' },
+                                { key: 'everyone', icon: Users2, title: 'Everyone', desc: 'All employees can access' },
+                                { key: 'specific', icon: Share2, title: 'Specific people', desc: 'Choose who can access' },
+                            ] as const).map(opt => (
+                                <button key={opt.key} onClick={() => setShareMode(opt.key)}
+                                    className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors",
+                                        shareMode === opt.key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted')}>
+                                    <opt.icon className={cn("w-4 h-4 shrink-0", shareMode === opt.key ? 'text-primary' : 'text-muted-foreground')} />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-foreground">{opt.title}</p>
+                                        <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                                    </div>
+                                    {shareMode === opt.key && <Check className="w-4 h-4 text-primary shrink-0" />}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* User picker */}
+                        {shareMode === 'specific' && (
+                            <div className="border border-border rounded-lg max-h-56 overflow-y-auto divide-y divide-border">
+                                {allUsers.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground text-center py-6">No other users found</p>
+                                ) : allUsers.map(u => {
+                                    const on = shareUsers.includes(u._id);
+                                    return (
+                                        <button key={u._id}
+                                            onClick={() => setShareUsers(prev => on ? prev.filter(x => x !== u._id) : [...prev, u._id])}
+                                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/50 text-left">
+                                            <div className={cn("w-4 h-4 rounded border-2 flex items-center justify-center shrink-0", on ? 'bg-primary border-primary' : 'border-muted-foreground/40')}>
+                                                {on && <Check className="w-2.5 h-2.5 text-white" />}
+                                            </div>
+                                            {u.image
+                                                ? <img src={u.image} alt={u.name} className="w-7 h-7 rounded-full object-cover" />
+                                                : <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">{u.name?.charAt(0)}</div>}
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setShareFolder(null)}>Cancel</Button>
+                        <Button type="button" size="sm" onClick={saveShare} disabled={savingShare || (shareMode === 'specific' && shareUsers.length === 0)}>
+                            {savingShare ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                            Save
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

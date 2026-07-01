@@ -13,7 +13,7 @@ import { useSession } from 'next-auth/react';
 const ALL_HRM_LINKS = [
     { name: 'Dashboard', href: '/hrm', icon: LayoutDashboard, adminOnly: true, staffOnly: false },
     { name: 'Employees', href: '/hrm/employees', icon: Users, adminOnly: true, staffOnly: false },
-    { name: 'Attendance', href: '/hrm/attendance', icon: UserCheck, adminOnly: false, staffOnly: true },
+    { name: 'Attendance', href: '/hrm/attendance', icon: UserCheck, adminOnly: false, staffOnly: false },
     { name: 'Attendance Report', href: '/hrm/attendance-report', icon: ClipboardList, adminOnly: true, staffOnly: false },
     { name: 'Payroll', href: '/hrm/payroll', icon: Banknote, adminOnly: true, staffOnly: false },
     { name: 'Requests', href: '/hrm/leave', icon: CalendarDays, adminOnly: false, staffOnly: false },
@@ -76,7 +76,7 @@ export default function HRMLayoutClient({ children, role: initialRole }: { child
         <div className="flex flex-col h-full gap-6">
             <nav
                 className={cn(
-                    "flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar transition-opacity duration-300",
+                    "flex items-center gap-1 border-b border-border pb-0 flex-wrap gap-y-1 transition-opacity duration-300",
                     mounted ? "opacity-100" : "opacity-0"
                 )}
             >

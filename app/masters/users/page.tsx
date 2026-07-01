@@ -341,16 +341,16 @@ export default function UsersMaster() {
                                     <p className="text-xs text-muted-foreground truncate">{user.jobTitle || getRoleLabel(user)}</p>
                                 </div>
                             </div>
-                            <div className="space-y-1.5 mb-3">
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <div className="space-y-1.5 mb-3 min-w-0 overflow-hidden">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                                     <Lock className="w-3 h-3 shrink-0 text-primary/50" />
-                                    <span className="truncate font-medium text-foreground/80">{user.email}</span>
+                                    <span className="truncate font-medium text-foreground/80 min-w-0">{user.email}</span>
                                 </div>
                                 {(user.companyEmails || []).length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1.5">
                                         {(user.companyEmails || []).map(ce => (
-                                            <span key={ce} className="inline-flex items-center gap-1 text-[10px] font-medium bg-primary/8 text-primary px-1.5 py-0.5 rounded-md border border-primary/20">
-                                                <AtSign className="w-2.5 h-2.5" />{ce}
+                                            <span key={ce} className="inline-flex items-center gap-1 text-[10px] font-medium bg-primary/8 text-primary px-1.5 py-0.5 rounded-md border border-primary/20 max-w-full">
+                                                <AtSign className="w-2.5 h-2.5 shrink-0" /><span className="truncate">{ce}</span>
                                             </span>
                                         ))}
                                     </div>

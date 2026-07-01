@@ -1,11 +1,12 @@
 "use client";
 
 import { use, useEffect, useState } from 'react';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, LayoutDashboard, Loader2, MapPin, Pencil, Settings, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, LayoutDashboard, Loader2, MapPin, Pencil, Plus, Search, Settings, Trash2, UserMinus, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getProjectById, updateProject, deleteProject, recalculateProjectProgress } from '@/app/actions/project';
 import { getProjectTemplateByName } from '@/app/actions/project-templates';
+import { getUsers } from '@/app/actions/hrm';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,12 @@ export default function ProjectDashboard({ params }: { params: Promise<{ id: str
     // Delete state
     const [showDelete, setShowDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    // Team management state
+    const [showTeam, setShowTeam] = useState(false);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [teamSearch, setTeamSearch] = useState('');
+    const [savingTeam, setSavingTeam] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -60,6 +67,31 @@ export default function ProjectDashboard({ params }: { params: Promise<{ id: str
         };
         load();
     }, [id]);
+
+    const openTeamModal = async () => {
+        if (allUsers.length === 0) {
+            const res = await getUsers();
+            if (res.success) setAllUsers(res.data || []);
+        }
+        setTeamSearch('');
+        setShowTeam(true);
+    };
+
+    const toggleMember = async (userId: string) => {
+        const current: any[] = project.teamMembers || [];
+        const ids: string[] = current.map((m: any) => m._id || m);
+        const next = ids.includes(userId) ? ids.filter(id => id !== userId) : [...ids, userId];
+        setSavingTeam(true);
+        const res = await updateProject(id, { teamMembers: next });
+        if (res.success) {
+            const updatedMembers = allUsers.filter(u => next.includes(u._id));
+            setProject((p: any) => ({ ...p, teamMembers: updatedMembers }));
+            toast.success(ids.includes(userId) ? 'Member removed' : 'Member added');
+        } else {
+            toast.error(res.error || 'Failed to update team');
+        }
+        setSavingTeam(false);
+    };
 
     const handleSaveEdit = async () => {
         if (!editForm.name || !editForm.client) { toast.error("Name and Client are required"); return; }
@@ -264,19 +296,37 @@ export default function ProjectDashboard({ params }: { params: Promise<{ id: str
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div className="glass-card p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
-                    <h3 className="text-gray-500 text-xs font-medium mb-2">Team Members</h3>
-                    <div className="flex -space-x-3 mb-4">
-                        {(project.teamMembers || []).slice(0, 4).map((member: any, i: number) => (
-                            <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-background flex items-center justify-center text-xs font-bold text-gray-600">
-                                {typeof member === 'string' ? member.charAt(0).toUpperCase() : '?'}
-                            </div>
+                <div onClick={openTeamModal} className="glass-card p-4 rounded-xl border border-gray-200 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-gray-500 text-xs font-medium">Team Members</h3>
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2 py-0.5 rounded-full">
+                            <Plus className="w-3 h-3" /> Add
+                        </span>
+                    </div>
+                    <div className="flex -space-x-2 mb-3">
+                        {(project.teamMembers || []).slice(0, 5).map((member: any, i: number) => (
+                            member?.image
+                                ? <img key={i} src={member.image} alt={member.name} className="w-9 h-9 rounded-full border-2 border-white object-cover" />
+                                : <div key={i} className="w-9 h-9 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                    {(member?.name || '?').charAt(0).toUpperCase()}
+                                </div>
                         ))}
                         {(project.teamMembers || []).length === 0 && (
-                            <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-200 flex items-center justify-center text-xs text-gray-400">0</div>
+                            <div className="w-9 h-9 rounded-full border-2 border-dashed border-gray-200 flex items-center justify-center">
+                                <Users className="w-4 h-4 text-gray-300" />
+                            </div>
+                        )}
+                        {(project.teamMembers || []).length > 5 && (
+                            <div className="w-9 h-9 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                +{(project.teamMembers || []).length - 5}
+                            </div>
                         )}
                     </div>
-                    <p className="text-sm text-blue-600 font-medium">Manage Team &rarr;</p>
+                    <p className="text-xs text-gray-500">
+                        {(project.teamMembers || []).length === 0
+                            ? 'No members yet — click to add'
+                            : `${(project.teamMembers || []).length} member${(project.teamMembers || []).length !== 1 ? 's' : ''} · click to manage`}
+                    </p>
                 </div>
 
                 <div className="glass-card p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
@@ -369,6 +419,113 @@ export default function ProjectDashboard({ params }: { params: Promise<{ id: str
                                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                                 Save Changes
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Team Management Modal */}
+            {showTeam && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900">Manage Team</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {(project.teamMembers || []).length} member{(project.teamMembers || []).length !== 1 ? 's' : ''} on this project
+                                </p>
+                            </div>
+                            <button onClick={() => setShowTeam(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Current members */}
+                        {(project.teamMembers || []).length > 0 && (
+                            <div className="px-5 pt-4 pb-2 flex-shrink-0">
+                                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Current Team</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {(project.teamMembers || []).map((m: any) => (
+                                        <div key={m._id} className="flex items-center gap-1.5 bg-primary/8 border border-primary/15 rounded-full pl-1 pr-2 py-0.5">
+                                            {m.image
+                                                ? <img src={m.image} alt={m.name} className="w-5 h-5 rounded-full object-cover" />
+                                                : <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-bold text-primary">{m.name?.charAt(0)}</div>
+                                            }
+                                            <span className="text-xs font-medium text-gray-800">{m.name}</span>
+                                            <button
+                                                onClick={() => toggleMember(m._id)}
+                                                disabled={savingTeam}
+                                                className="ml-0.5 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Search */}
+                        <div className="px-5 py-3 flex-shrink-0">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Search users by name or department…"
+                                    value={teamSearch}
+                                    onChange={e => setTeamSearch(e.target.value)}
+                                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* User list */}
+                        <div className="overflow-y-auto flex-1 px-5 pb-5">
+                            {(() => {
+                                const memberIds = (project.teamMembers || []).map((m: any) => m._id);
+                                const q = teamSearch.toLowerCase();
+                                const filtered = allUsers.filter(u =>
+                                    (!q || u.name?.toLowerCase().includes(q) || u.dept?.toLowerCase().includes(q) || u.jobTitle?.toLowerCase().includes(q))
+                                );
+                                if (filtered.length === 0) return (
+                                    <p className="text-sm text-gray-400 text-center py-8">No users found</p>
+                                );
+                                return (
+                                    <div className="space-y-1">
+                                        {filtered.map((u: any) => {
+                                            const isMember = memberIds.includes(u._id);
+                                            return (
+                                                <button
+                                                    key={u._id}
+                                                    onClick={() => toggleMember(u._id)}
+                                                    disabled={savingTeam}
+                                                    className={cn(
+                                                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all disabled:opacity-50',
+                                                        isMember
+                                                            ? 'bg-primary/8 border border-primary/20 hover:bg-red-50 hover:border-red-200 group'
+                                                            : 'hover:bg-gray-50 border border-transparent'
+                                                    )}
+                                                >
+                                                    {u.image
+                                                        ? <img src={u.image} alt={u.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                                        : <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">{u.name?.charAt(0)}</div>
+                                                    }
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-gray-900 truncate">{u.name}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{[u.jobTitle, u.dept].filter(Boolean).join(' · ')}</p>
+                                                    </div>
+                                                    {isMember ? (
+                                                        <UserMinus className="w-4 h-4 text-primary group-hover:text-red-500 transition-colors flex-shrink-0" />
+                                                    ) : (
+                                                        <Plus className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>

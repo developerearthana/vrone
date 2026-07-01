@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getProjectStats, getProjects, createProject, updateProject, deleteProject } from '@/app/actions/project';
-import { getProjectTemplates } from '@/app/actions/project-templates';
+import { getProjectTemplates, createMergedTemplate } from '@/app/actions/project-templates';
 import { exportToCSV, handlePrint } from '@/lib/export-utils';
 import { toast } from 'sonner';
 
@@ -27,7 +27,9 @@ export default function ProjectsDashboard() {
     const [templates, setTemplates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-    const [newProject, setNewProject] = useState({ name: '', client: '', status: 'Planning', template: '' });
+    const [newProject, setNewProject] = useState({ name: '', client: '', status: 'Planning' });
+    const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
+    const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
 
     // Edit
     const [editProject, setEditProject] = useState<any>(null);
@@ -90,19 +92,33 @@ export default function ProjectsDashboard() {
             return;
         }
         try {
-            const res = await createProject(newProject);
+            let templateName = '';
+            if (selectedTemplates.length === 1) {
+                templateName = selectedTemplates[0];
+            } else if (selectedTemplates.length > 1) {
+                templateName = await createMergedTemplate(newProject.name, selectedTemplates);
+            }
+            const res = await createProject({ ...newProject, template: templateName });
             if (res.success) {
                 toast.success("Project created successfully");
                 setShowNewProjectModal(false);
                 loadProjects();
                 fetchStats();
-                setNewProject({ name: '', client: '', status: 'Planning', template: '' });
+                setNewProject({ name: '', client: '', status: 'Planning' });
+                setSelectedTemplates([]);
+                setExpandedTemplate(null);
             } else {
                 toast.error(res.error || "Failed to create project");
             }
         } catch {
             toast.error("An error occurred");
         }
+    };
+
+    const toggleTemplate = (name: string) => {
+        setSelectedTemplates(prev =>
+            prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+        );
     };
 
     const openEdit = (project: any) => {
@@ -292,78 +308,132 @@ export default function ProjectsDashboard() {
             {/* New Project Modal */}
             {showNewProjectModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-in zoom-in-95 duration-200">
-                        <h3 className="text-lg font-bold text-gray-900">Start New Project</h3>
-                        <div className="space-y-3">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                                <input
-                                    type="text"
-                                    placeholder="Enter project name"
-                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                    value={newProject.name}
-                                    onChange={e => setNewProject({ ...newProject, name: e.target.value })}
-                                />
+                                <h3 className="text-lg font-bold text-gray-900">Start New Project</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Fill in the details and pick one or more workflows</p>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
-                                <input
-                                    type="text"
-                                    placeholder="Enter client name"
-                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                    value={newProject.client}
-                                    onChange={e => setNewProject({ ...newProject, client: e.target.value })}
-                                />
+                            <button onClick={() => { setShowNewProjectModal(false); setSelectedTemplates([]); setExpandedTemplate(null); }} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Scrollable body */}
+                        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Villa Redesign"
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        value={newProject.name}
+                                        onChange={e => setNewProject({ ...newProject, name: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Client Name <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Rajan Mehta"
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                        value={newProject.client}
+                                        onChange={e => setNewProject({ ...newProject, client: e.target.value })}
+                                    />
+                                </div>
                             </div>
+
+                            {/* Workflow picker */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
-                                <select
-                                    aria-label="Select Project Template"
-                                    className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none bg-white"
-                                    value={newProject.template}
-                                    onChange={(e) => setNewProject({ ...newProject, template: e.target.value })}
-                                >
-                                    <option value="">No Template</option>
-                                    {templates.map((t) => (
-                                        <option key={t._id} value={t.name}>{t.name}</option>
-                                    ))}
-                                </select>
-                                {newProject.template && (() => {
-                                    const selected = templates.find(t => t.name === newProject.template);
-                                    if (!selected || !selected.stages?.length) return null;
-                                    return (
-                                        <div className="mt-2 border border-gray-100 rounded-lg bg-gray-50 p-3 space-y-1.5 max-h-48 overflow-y-auto">
-                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
-                                                <Layers className="w-3.5 h-3.5" />
-                                                {selected.stages.length} Stages
-                                            </div>
-                                            {selected.stages.map((stage: any, i: number) => (
-                                                <div key={stage.id} className="flex items-start gap-2">
-                                                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
-                                                        {i + 1}
-                                                    </span>
-                                                    <div>
-                                                        <p className="text-xs font-medium text-gray-800">{stage.name}</p>
-                                                        {stage.modules?.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1 mt-0.5">
-                                                                {stage.modules.map((mod: string) => (
-                                                                    <span key={mod} className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full">
-                                                                        {mod}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-semibold text-gray-600">
+                                        Workflows
+                                        {selectedTemplates.length > 0 && (
+                                            <span className="ml-2 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold">
+                                                {selectedTemplates.length} selected
+                                            </span>
+                                        )}
+                                    </label>
+                                    {selectedTemplates.length > 0 && (
+                                        <button onClick={() => setSelectedTemplates([])} className="text-[11px] text-gray-400 hover:text-gray-600">Clear</button>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                                    {templates.filter(t => !t.name.includes('— Custom Workflow')).map(t => {
+                                        const isChecked = selectedTemplates.includes(t.name);
+                                        const isExpanded = expandedTemplate === t.name;
+                                        return (
+                                            <div key={t._id} className={cn('border rounded-xl transition-all overflow-hidden', isChecked ? 'border-primary/40 bg-primary/5' : 'border-gray-200 bg-white hover:border-gray-300')}>
+                                                <div className="flex items-center gap-3 px-3 py-2.5">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => toggleTemplate(t.name)}
+                                                        className="w-4 h-4 rounded accent-primary cursor-pointer flex-shrink-0"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={cn('text-sm font-semibold truncate', isChecked ? 'text-primary' : 'text-gray-800')}>{t.name}</p>
+                                                        {t.description && <p className="text-xs text-gray-500 truncate">{t.description}</p>}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        <span className="flex items-center gap-1 text-[11px] text-gray-400 font-medium">
+                                                            <Layers className="w-3 h-3" />{t.stages?.length || 0}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => setExpandedTemplate(isExpanded ? null : t.name)}
+                                                            className="text-[11px] text-gray-400 hover:text-primary transition-colors px-1"
+                                                        >
+                                                            {isExpanded ? '▲' : '▼'}
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    );
-                                })()}
+
+                                                {isExpanded && t.stages?.length > 0 && (
+                                                    <div className="border-t border-gray-100 bg-gray-50/80 px-3 py-2 space-y-1.5">
+                                                        {[...t.stages].sort((a: any, b: any) => a.order - b.order).map((stage: any, i: number) => (
+                                                            <div key={stage.id} className="flex items-start gap-2">
+                                                                <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                                                                <div>
+                                                                    <p className="text-xs font-medium text-gray-700">{stage.name}</p>
+                                                                    {stage.modules?.length > 0 && (
+                                                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                                                            {stage.modules.map((m: string) => (
+                                                                                <span key={m} className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full">{m}</span>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Combined stage count when multiple selected */}
+                                {selectedTemplates.length > 1 && (
+                                    <div className="mt-2 flex items-center gap-2 text-xs text-primary font-medium bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                                        <Layers className="w-3.5 h-3.5 flex-shrink-0" />
+                                        {selectedTemplates.reduce((sum, name) => {
+                                            const t = templates.find(x => x.name === name);
+                                            return sum + (t?.stages?.length || 0);
+                                        }, 0)} stages combined from {selectedTemplates.length} workflows — will be merged on create
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <div className="flex justify-end pt-2 gap-2">
-                            <Button variant="ghost" onClick={() => setShowNewProjectModal(false)}>Cancel</Button>
-                            <Button onClick={handleCreateProject}>Create Project</Button>
+
+                        {/* Footer */}
+                        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                            <Button variant="ghost" onClick={() => { setShowNewProjectModal(false); setSelectedTemplates([]); setExpandedTemplate(null); }}>Cancel</Button>
+                            <Button onClick={handleCreateProject}>
+                                {selectedTemplates.length > 1 ? `Create with ${selectedTemplates.length} Workflows` : 'Create Project'}
+                            </Button>
                         </div>
                     </div>
                 </div>

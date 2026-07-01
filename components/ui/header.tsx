@@ -58,6 +58,14 @@ export function Header({ user }: { user?: any }) {
     const currentUser = user || session?.user;
     const userRole = currentUser?.role;
     const userPermissions = currentUser?.permissions as string[] | undefined;
+    const displayName = currentUser
+        ? (currentUser.initial ? `${currentUser.name}.${currentUser.initial}` : currentUser.name)
+        : 'Guest User';
+    const avatarInitials = currentUser
+        ? (currentUser.initial
+            ? `${currentUser.name?.charAt(0) ?? ''}${currentUser.initial}`
+            : currentUser.name?.charAt(0) ?? '?')
+        : '?';
     const router = useRouter();
 
     const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -212,11 +220,11 @@ export function Header({ user }: { user?: any }) {
                             {currentUser?.image ? (
                                 <img src={currentUser.image} alt="Profile" className="h-full w-full object-cover" />
                             ) : (
-                                <User className="h-4 w-4" />
+                                <span className="text-xs font-bold">{avatarInitials}</span>
                             )}
                         </div>
                         <div className="hidden md:flex flex-col items-start leading-tight">
-                            <span className="text-sm font-semibold text-foreground">{currentUser?.name || 'Guest User'}</span>
+                            <span className="text-sm font-semibold text-foreground">{displayName}</span>
                             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{userRole || 'Visitor'}</span>
                         </div>
                     </button>
@@ -229,7 +237,7 @@ export function Header({ user }: { user?: any }) {
                         >
                             <div className="bg-popover rounded-xl shadow-xl border border-border overflow-hidden p-1">
                                 <div className="px-3 py-2.5 border-b border-border mb-1">
-                                    <p className="text-sm font-semibold text-foreground">{currentUser?.name || 'Guest'}</p>
+                                    <p className="text-sm font-semibold text-foreground">{displayName || 'Guest'}</p>
                                     <p className="text-xs text-muted-foreground truncate">{currentUser?.email || 'No email'}</p>
                                 </div>
 

@@ -77,8 +77,15 @@ export function Sidebar({
         if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = desktopScrollPos.current
     }, [pathname])
 
+    // Users who have the full HRM module (admin/manager) reach Attendance & Leave via the HRM
+    // sub-navigation, so we hide the redundant top-level entries for them. Staff (basic-hrm only)
+    // keep the direct sidebar links since they don't see the HRM module.
+    const hasFullHRM = userRole === 'super-admin' || userRole === 'admin'
+        || userPermissions?.includes('*') || userPermissions?.includes('all')
+        || userPermissions?.includes('hrm');
+
     const filteredNavItems = navItems.filter(item => {
-        if (item.permission === 'basic-hrm') return true;
+        if (item.permission === 'basic-hrm') return !hasFullHRM;
         if (userRole === 'super-admin' || userRole === 'admin') return true;
         if (userPermissions?.includes('*') || userPermissions?.includes('all')) return true;
         if (userPermissions?.includes(item.permission)) return true;

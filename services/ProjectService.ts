@@ -100,7 +100,9 @@ export class ProjectService {
      */
     async getProjectById(id: string) {
         await connectToDatabase();
-        const project = await Project.findById(id).lean();
+        const project = await Project.findById(id)
+            .populate('teamMembers', '_id name image dept jobTitle')
+            .lean();
         if (!project) return null;
 
         return {

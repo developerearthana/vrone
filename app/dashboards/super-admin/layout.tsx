@@ -22,7 +22,7 @@ export default function SuperAdminLayout({
 
     return (
         <div className="flex flex-col h-full gap-0 -mt-6">
-            <div className="flex items-center gap-6 border-b pb-4 overflow-x-auto">
+            <div className="flex items-center gap-x-6 gap-y-2 border-b pb-4 flex-wrap">
                 {adminLinks.map((link) => {
                     const Icon = link.icon;
                     // Strict match for exactly '/dashboards/super-admin', simplistic for others

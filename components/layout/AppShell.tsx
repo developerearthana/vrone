@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
 import { PageProgress } from "@/components/ui/page-progress";
-import ChatNotificationBubble from "@/components/chat/ChatNotificationBubble";
+import ChatLauncher from "@/components/chat/ChatLauncher";
 import { useState } from "react";
 
 export default function AppShell({
@@ -177,8 +177,8 @@ export default function AppShell({
                 </main>
             </div>
 
-            {/* Global chat message notifications — appears in bottom-right when not on chat page */}
-            {!isAuthPage && <ChatNotificationBubble />}
+            {/* Floating chat bubble — expands to a panel / fullscreen, with sound + animation alerts */}
+            {!isAuthPage && <ChatLauncher />}
         </div>
     );
 }

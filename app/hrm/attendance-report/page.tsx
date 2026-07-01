@@ -53,6 +53,8 @@ export default function HRMAttendanceAdminPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    // Live clock so active (still punched-in) sessions show elapsed hours up to the current time
+    const [clockNow, setClockNow] = useState(() => Date.now());
     const [lateThresholdHour, setLateThresholdHour] = useState(10); // configurable via CompanySettings
 
     // Manual entry state
@@ -75,6 +77,22 @@ export default function HRMAttendanceAdminPage() {
             }
         });
     }, []);
+
+    // Tick every 30s so live "hours worked" for active sessions stays current without a reload
+    useEffect(() => {
+        const id = setInterval(() => setClockNow(Date.now()), 30_000);
+        return () => clearInterval(id);
+    }, []);
+
+    // Hours worked for a record: persisted value if punched out, otherwise live elapsed from punch-in
+    const displayHours = (r: AttendanceRecord): number | null => {
+        if (r.hoursWorked && r.hoursWorked > 0) return r.hoursWorked;
+        if (r.punchIn && !r.punchOut) {
+            const elapsed = (clockNow - new Date(r.punchIn).getTime()) / 3_600_000;
+            return elapsed > 0 ? elapsed : 0;
+        }
+        return null;
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -154,11 +172,15 @@ export default function HRMAttendanceAdminPage() {
         }
     };
 
+    // Only count records that have a valid populated userId — same baseline as the table.
+    // Records with null userId (deleted users) would otherwise inflate KPI counts
+    // without appearing in the listing, causing a mismatch.
+    const activeRecords = records.filter(r => !!r.userId);
     const stats = {
-        present: records.filter(r => r.status === 'Present' || r.status === 'WFH').length,
-        absent: records.filter(r => r.status === 'Absent').length,
-        late: records.filter(r => r.punchIn && new Date(r.punchIn).getHours() >= lateThresholdHour).length,
-        wfh: records.filter(r => r.workMode === 'Remote').length,
+        present: activeRecords.filter(r => r.status === 'Present' || r.status === 'WFH').length,
+        absent: activeRecords.filter(r => r.status === 'Absent').length,
+        late: activeRecords.filter(r => r.punchIn && new Date(r.punchIn).getHours() >= lateThresholdHour).length,
+        wfh: activeRecords.filter(r => r.workMode === 'Remote').length,
     };
 
     const filteredRecords = records.filter(r => {
@@ -368,11 +390,26 @@ export default function HRMAttendanceAdminPage() {
                                                 {record.punchOut ? (
                                                     <span className="font-mono font-semibold text-sm text-foreground">{format(new Date(record.punchOut), 'HH:mm')}</span>
                                                 ) : record.punchIn ? (
-                                                    <span className="text-xs text-amber-600 font-medium animate-pulse">Active ●</span>
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                                                        <span className="relative flex h-2 w-2">
+                                                            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
+                                                            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                                                        </span>
+                                                        Active
+                                                    </span>
                                                 ) : <span className="text-muted-foreground/50">—</span>}
                                             </td>
                                             <td className="px-5 py-4 text-foreground hidden sm:table-cell">
-                                                {record.hoursWorked > 0 ? `${record.hoursWorked.toFixed(1)}h` : '—'}
+                                                {(() => {
+                                                    const h = displayHours(record);
+                                                    if (h === null) return '—';
+                                                    const isLive = !record.punchOut && !!record.punchIn;
+                                                    return (
+                                                        <span className={cn('font-mono', isLive && 'text-emerald-600 font-semibold')}>
+                                                            {h.toFixed(1)}h{isLive && <span className="ml-1 text-[10px] text-emerald-500">live</span>}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="px-5 py-4">
                                                 <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', STATUS_COLORS[record.status] || 'bg-gray-100 text-gray-600')}>

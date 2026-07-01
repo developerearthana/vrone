@@ -16,7 +16,6 @@ const cards = [
     { name: 'Teams',               desc: 'Workforce groups',                        href: '/masters/teams',               icon: Network,   color: 'text-green-600',  bg: 'bg-green-50' },
     { name: 'User Types',          desc: 'Custom permission sets',                  href: '/masters/usertypes',           icon: Settings,  color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Users',               desc: 'ERP access accounts',                     href: '/masters/users',               icon: Users,     color: 'text-primary',    bg: 'bg-primary/10' },
-    { name: 'Vendors',             desc: 'Vendor & supplier details',               href: '/masters/vendors',             icon: Tag,       color: 'text-teal-600',   bg: 'bg-teal-50' },
     { name: 'Project Templates',   desc: 'Stage workflows',                         href: '/masters/project-templates',   icon: Layers,    color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Employee Categories', desc: 'Employment types (Full-time, Contract…)', href: '/masters/employee-categories', icon: Briefcase, color: 'text-rose-600',   bg: 'bg-rose-50' },
     { name: 'Work Board',          desc: 'Mood board & planning canvas',            href: '/masters/mood-board',          icon: Settings,  color: 'text-amber-600',  bg: 'bg-amber-50' },

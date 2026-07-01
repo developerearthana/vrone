@@ -104,6 +104,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                     role: user.role,
                     permissions,
                     image,
+                    initial: (user as any).initial || undefined,
                 };
             },
         }),
@@ -114,6 +115,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 token.role = user.role;
                 token.name = user.name;
                 token.permissions = user.permissions || [];
+                token.initial = user.initial;
                 // Strip base64 data URIs — they exceed Node.js's max header size when chunked into cookies
                 const img = user.image as string | undefined;
                 token.picture = img?.startsWith('data:')
@@ -123,6 +125,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             if (trigger === 'update' && session) {
                 if (session.image) token.picture = session.image;
                 if (session.name) token.name = session.name;
+                if (session.initial !== undefined) token.initial = session.initial;
             }
             return token;
         },
@@ -133,6 +136,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
                 session.user.role = token.role;
                 session.user.permissions = token.permissions;
                 session.user.image = token.picture;
+                session.user.initial = token.initial;
             }
             return session;
         },

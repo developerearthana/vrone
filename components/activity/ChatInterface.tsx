@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
     Send, Search, MoreVertical, Paperclip, Smile,
-    Check, CheckCheck, Plus, Trash2, X, Users, Archive, Phone,
-    Loader2, ArrowLeft, Bold, Italic, Strikethrough, Code,
+    Check, CheckCheck, Plus, X, Users, EyeOff, Phone,
+    Loader2, ArrowLeft, Bold, Italic, Strikethrough, Code, Pencil, Baseline, Highlighter,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -12,9 +12,9 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
     getConversations, getMessages, sendMessage, createConversation,
-    getUsersForChat, clearChatHistory, deleteConversation, deleteAllConversations, markAsRead,
+    getUsersForChat, deleteConversation, markAsRead, editMessage,
 } from '@/app/actions/activity/chat';
-import { getTeams } from '@/app/actions/organization';
+import { playChatPing } from '@/lib/chat-notify';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useSession } from 'next-auth/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,6 +29,7 @@ interface Message {
     createdAt: string;
     readBy: string[];
     attachments?: string[];
+    edited?: boolean;
 }
 
 interface Conversation {
@@ -56,13 +57,27 @@ function isEmojiOnly(text: string): boolean {
     return t.length > 0 && EMOJI_ONLY_RE.test(t) && t.length <= 12;
 }
 
+// Word-style colour palettes for the composer toolbar
+const TEXT_SWATCHES = ['#111827', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777'];
+const HIGHLIGHT_SWATCHES = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e9d5ff', '#fecaca', '#d9f99d'];
+
+// Only allow a safe subset of colour values in [fg=…] / [bg=…] tags — hex, rgb(), or a
+// short word list — so a message can never inject arbitrary CSS.
+function safeColor(v: string): string | null {
+    const c = v.trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(c)) return c;
+    if (/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/.test(c)) return c;
+    if (/^[a-zA-Z]{3,20}$/.test(c)) return c;
+    return null;
+}
+
 // ─── Inline markdown renderer ──────────────────────────────────────────────────
-// Supports: *bold*, _italic_, ~strikethrough~, `code`, > blockquote
-function renderInline(text: string): React.ReactNode[] {
+// Supports: *bold*, _italic_, ~strikethrough~, `code`
+function renderInline(text: string, keyBase = 0): React.ReactNode[] {
     const result: React.ReactNode[] = [];
     const re = /\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~|`([^`\n]+)`/g;
     let lastIndex = 0;
-    let key = 0;
+    let key = keyBase;
     let match: RegExpExecArray | null;
     while ((match = re.exec(text)) !== null) {
         if (match.index > lastIndex) result.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
@@ -76,6 +91,35 @@ function renderInline(text: string): React.ReactNode[] {
     return result;
 }
 
+// ─── Rich renderer ─────────────────────────────────────────────────────────────
+// Adds Word-style [fg=colour]…[/fg] (text colour) and [bg=colour]…[/bg] (highlight),
+// recursively, on top of the inline markdown. Colours are validated by safeColor().
+const RICH_TAG_RE = /\[(fg|bg)=([^\]]+)\]([\s\S]*?)\[\/\1\]/;
+function renderRich(text: string, keyBase = 0): React.ReactNode[] {
+    const out: React.ReactNode[] = [];
+    let rest = text;
+    let key = keyBase;
+    while (rest.length) {
+        const m = RICH_TAG_RE.exec(rest);
+        if (!m) { out.push(...renderInline(rest, key)); break; }
+        if (m.index > 0) { out.push(...renderInline(rest.slice(0, m.index), key)); key += 500; }
+        const [full, tag, rawColor, inner] = m;
+        const color = safeColor(rawColor);
+        if (color) {
+            const style: React.CSSProperties = tag === 'fg'
+                ? { color }
+                : { backgroundColor: color, borderRadius: '3px', padding: '0 3px', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' };
+            out.push(<span key={key++} style={style}>{renderRich(inner, key + 1000)}</span>);
+        } else {
+            // Invalid colour → render the inner text without styling
+            out.push(<span key={key++}>{renderRich(inner, key + 1000)}</span>);
+        }
+        key += 100;
+        rest = rest.slice(m.index + full.length);
+    }
+    return out;
+}
+
 function FormattedMessage({ content, isMe }: { content: string; isMe: boolean }) {
     const lines = content.split('\n');
     return (
@@ -84,8 +128,8 @@ function FormattedMessage({ content, isMe }: { content: string; isMe: boolean })
                 <span key={i} className="block leading-relaxed">
                     {i > 0 && line === '' ? <span className="block h-1" /> : null}
                     {line.startsWith('> ')
-                        ? <span className={`block pl-2 border-l-2 ${isMe ? 'border-green-600/40' : 'border-gray-400/60'} italic opacity-80`}>{renderInline(line.slice(2))}</span>
-                        : renderInline(line)
+                        ? <span className={`block pl-2 border-l-2 ${isMe ? 'border-green-600/40' : 'border-gray-400/60'} italic opacity-80`}>{renderRich(line.slice(2))}</span>
+                        : renderRich(line)
                     }
                 </span>
             ))}
@@ -107,9 +151,35 @@ function ChatAvatar({ name, isGroup, size = 'md', image }: { name: string; isGro
     );
 }
 
+// ─── Colour swatch popover ─────────────────────────────────────────────────────
+function ColorSwatches({ swatches, label, onPick, onClose }: {
+    swatches: string[]; label: string; onPick: (c: string) => void; onClose: () => void;
+}) {
+    return (
+        <div className="absolute bottom-9 left-0 z-50 bg-popover border border-border rounded-xl shadow-xl p-2.5 w-[168px]"
+            onMouseDown={e => e.preventDefault()}>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</p>
+            <div className="grid grid-cols-5 gap-1.5">
+                {swatches.map(c => (
+                    <button key={c} type="button" onClick={() => onPick(c)}
+                        className="w-6 h-6 rounded-md border border-black/10 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: c }} title={c} />
+                ))}
+                <label className="w-6 h-6 rounded-md border border-dashed border-muted-foreground/40 flex items-center justify-center cursor-pointer hover:bg-muted"
+                    title="Custom colour">
+                    <span className="text-[9px] font-bold text-muted-foreground">+</span>
+                    <input type="color" className="sr-only" onChange={e => onPick(e.target.value)} />
+                </label>
+            </div>
+            <button type="button" onClick={onClose} className="mt-2 w-full text-[10px] text-muted-foreground hover:text-foreground">Close</button>
+        </div>
+    );
+}
+
 export default function ChatInterface() {
     const { data: session } = useSession();
     const userId = session?.user?.id as string | undefined;
+    const me = session?.user as { name?: string | null; image?: string | null } | undefined;
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -121,8 +191,7 @@ export default function ChatInterface() {
     const [isSending, setIsSending] = useState(false);
 
     const [availableUsers, setAvailableUsers] = useState<any[]>([]);
-    const [mastersTeams, setMastersTeams] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'Recent' | 'Groups' | 'Contacts' | 'Teams'>('Recent');
+    const [activeTab, setActiveTab] = useState<'Recent' | 'Groups' | 'Contacts'>('Recent');
     const [searchQuery, setSearchQuery] = useState('');
     const [isNewChatOpen, setIsNewChatOpen] = useState(false);
     const [showMobileChat, setShowMobileChat] = useState(false);
@@ -130,6 +199,12 @@ export default function ChatInterface() {
     const [groupName, setGroupName] = useState('');
     const [groupSelected, setGroupSelected] = useState<string[]>([]);
     const [dialogSearch, setDialogSearch] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [colorMenu, setColorMenu] = useState<'fg' | 'bg' | null>(null);
+
+    // Tracks the newest message id we've already seen per conversation, so the poller can
+    // detect a genuinely new *incoming* message and fire the notification sound.
+    const lastSeenMsgRef = useRef<Record<string, string>>({});
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,19 +216,27 @@ export default function ChatInterface() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior }), 60);
     }, []);
 
+    // ── Unified user lookup (includes the current user) ─────────────────────────
+    // getUsersForChat excludes self, so without this own name/avatar resolved to "Unknown".
+    const userById = useCallback((id?: string): { _id?: string; name?: string; image?: string } | undefined => {
+        if (!id) return undefined;
+        if (id === userId) return { _id: userId, name: me?.name || 'You', image: me?.image || undefined };
+        return availableUsers.find(u => u._id === id);
+    }, [availableUsers, userId, me]);
+
     // ── Conversation name helper ───────────────────────────────────────────────
     const convName = useCallback((c: Conversation) => {
         if (c.type === 'Group') return c.name || 'Group Chat';
         const otherId = c.participants.find(p => p !== userId);
-        const u = availableUsers.find(u => u._id === otherId);
+        const u = userById(otherId);
         return u?.name || `User ${String(otherId).slice(0, 5)}`;
-    }, [userId, availableUsers]);
+    }, [userId, userById]);
 
     const convImage = useCallback((c: Conversation) => {
         if (c.type === 'Group') return undefined;
         const otherId = c.participants.find(p => p !== userId);
-        return availableUsers.find(u => u._id === otherId)?.image;
-    }, [userId, availableUsers]);
+        return userById(otherId)?.image;
+    }, [userId, userById]);
 
     // ── Fetch conversations ────────────────────────────────────────────────────
     const fetchConversations = useCallback(async () => {
@@ -166,10 +249,21 @@ export default function ChatInterface() {
     const fetchMessages = useCallback(async (convId: string, scrollBehavior?: ScrollBehavior) => {
         const res = await getMessages(convId);
         if (res.success) {
-            setMessages(res.data);
+            const data: Message[] = res.data;
+            // Detect a genuinely new incoming message (from someone else) since our last poll
+            const latest = data[data.length - 1];
+            const prevSeen = lastSeenMsgRef.current[convId];
+            if (latest && latest._id !== prevSeen && !latest._id.startsWith('temp-')) {
+                if (prevSeen !== undefined && latest.sender !== userId) {
+                    playChatPing();
+                    scrollToBottom();
+                }
+                lastSeenMsgRef.current[convId] = latest._id;
+            }
+            setMessages(data);
             if (scrollBehavior) scrollToBottom(scrollBehavior);
         }
-    }, [scrollToBottom]);
+    }, [scrollToBottom, userId]);
 
     // ── Start polling (3 s) for active conversation ───────────────────────────
     const startPolling = useCallback((convId: string) => {
@@ -186,9 +280,8 @@ export default function ChatInterface() {
     useEffect(() => {
         if (!userId) return;
         const init = async () => {
-            const [usersRes, teamsRes] = await Promise.all([getUsersForChat(), getTeams()]);
+            const usersRes = await getUsersForChat();
             if (usersRes?.success) setAvailableUsers(usersRes.data);
-            if (teamsRes) setMastersTeams(Array.isArray(teamsRes) ? teamsRes : []);
         };
         init();
         fetchConversations();
@@ -205,9 +298,31 @@ export default function ChatInterface() {
         startPolling(id);
     };
 
+    // ── Edit message ──────────────────────────────────────────────────────────
+    const startEdit = (msg: Message) => {
+        setEditingId(msg._id);
+        setDraft(msg.content);
+        requestAnimationFrame(() => inputRef.current?.focus());
+    };
+    const cancelEdit = () => { setEditingId(null); setDraft(''); };
+
     // ── Send message ──────────────────────────────────────────────────────────
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Edit mode: update the existing message instead of sending a new one
+        if (editingId) {
+            const newContent = draft.trim();
+            if (!newContent) { cancelEdit(); return; }
+            const id = editingId;
+            setMessages(prev => prev.map(m => m._id === id ? { ...m, content: newContent, edited: true } : m));
+            setEditingId(null);
+            setDraft('');
+            const res = await editMessage(id, newContent);
+            if (!res.success) { toast.error('Failed to edit message'); if (activeConvId) fetchMessages(activeConvId); }
+            return;
+        }
+
         if (!activeConvId || (!draft.trim() && pendingAttachments.length === 0)) return;
         setShowEmoji(false);
 
@@ -263,6 +378,12 @@ export default function ChatInterface() {
         });
     };
 
+    // Wrap the current selection in a [fg=…] text-colour or [bg=…] highlight tag
+    const applyColor = (kind: 'fg' | 'bg', color: string) => {
+        handleFormat(`[${kind}=${color}]`, `[/${kind}]`);
+        setColorMenu(null);
+    };
+
     // ── Emoji picker close on outside click ───────────────────────────────────
     useEffect(() => {
         const h = (e: MouseEvent) => {
@@ -297,19 +418,9 @@ export default function ChatInterface() {
     };
 
     // ── Start chat ────────────────────────────────────────────────────────────
-    const startChat = async (targetId: string, isTeam = false) => {
+    const startChat = async (targetId: string) => {
         setIsNewChatOpen(false);
-        if (isTeam) {
-            const team = mastersTeams.find(t => t._id === targetId);
-            if (!team) return;
-            const existing = conversations.find(c => c.type === 'Group' && c.name === team.name);
-            if (existing) { handleSelectConversation(existing._id); return; }
-            const memberIds = (team.members || []).map((m: any) => m._id || m);
-            const res = await createConversation(memberIds, 'Group', team.name);
-            if (res.success) { await fetchConversations(); handleSelectConversation(res.data._id); }
-            else toast.error('Failed to create team chat');
-            return;
-        }
+        setActiveTab('Recent'); // clicking a person surfaces the conversation in Recent
         const existing = conversations.find(c => c.type === 'Individual' && c.participants.includes(targetId));
         if (existing) { handleSelectConversation(existing._id); return; }
         const res = await createConversation([targetId], 'Individual');
@@ -334,25 +445,21 @@ export default function ChatInterface() {
 
     const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (!confirm('Delete this conversation?')) return;
+        if (!confirm('Hide this conversation from your list? History is preserved.')) return;
         const res = await deleteConversation(id);
         if (res.success) {
-            toast.success('Conversation deleted');
+            toast.success('Conversation hidden');
             if (activeConvId === id) { setActiveConvId(null); setMessages([]); }
             fetchConversations();
         }
     };
 
-    const handleClearHistory = async () => {
-        if (!activeConvId || !confirm('Clear all messages in this chat?')) return;
-        const res = await clearChatHistory(activeConvId);
-        if (res.success) { toast.success('History cleared'); setMessages([]); }
-    };
-
-    const handleClearAll = async () => {
-        if (!confirm('Delete ALL conversations? This cannot be undone.')) return;
-        const res = await deleteAllConversations();
-        if (res.success) { toast.success('All conversations deleted'); setConversations([]); setActiveConvId(null); setMessages([]); }
+    // Corporate policy: messages are never deleted. "Hide" only removes the conversation from
+    // this user's list (archive) while preserving the full history for compliance.
+    const handleHideConversation = async () => {
+        if (!activeConvId || !confirm('Hide this conversation from your list? The message history is preserved and will reappear when either party sends a new message.')) return;
+        const res = await deleteConversation(activeConvId);
+        if (res.success) { toast.success('Conversation hidden'); setActiveConvId(null); setMessages([]); fetchConversations(); }
     };
 
     const isImage = (url: string) => /\.(jpeg|jpg|gif|png|webp)$/i.test(url) || url.startsWith('data:image/');
@@ -361,25 +468,18 @@ export default function ChatInterface() {
 
     // ── Sender helpers (for group message attribution) ────────────────────────
     const getSenderName = useCallback((senderId: string) =>
-        availableUsers.find(u => u._id === senderId)?.name || 'Unknown',
-    [availableUsers]);
+        userById(senderId)?.name || 'Unknown',
+    [userById]);
 
     const getSenderImage = useCallback((senderId: string) =>
-        availableUsers.find(u => u._id === senderId)?.image,
-    [availableUsers]);
+        userById(senderId)?.image,
+    [userById]);
 
     // ── Sidebar list ──────────────────────────────────────────────────────────
     const displayList = (() => {
         const q = searchQuery.toLowerCase();
         if (activeTab === 'Contacts') return availableUsers.filter(u => u.name?.toLowerCase().includes(q));
         if (activeTab === 'Groups') return conversations.filter(c => c.type === 'Group' && convName(c).toLowerCase().includes(q));
-        if (activeTab === 'Teams') {
-            return mastersTeams.filter(t => {
-                const inTeam = (t.members || []).some((m: any) => String(m._id || m) === String(userId))
-                    || String(t.teamLead?._id || t.teamLead) === String(userId);
-                return inTeam && t.name?.toLowerCase().includes(q);
-            });
-        }
         return conversations.filter(c => convName(c).toLowerCase().includes(q));
     })();
 
@@ -412,11 +512,6 @@ export default function ChatInterface() {
                     <div className="flex items-center justify-between">
                         <h2 className="text-base font-bold text-foreground">Messages</h2>
                         <div className="flex items-center gap-1">
-                            {activeTab === 'Recent' && conversations.length > 0 && (
-                                <button onClick={handleClearAll} title="Clear all" className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                            )}
                             <button onClick={() => setIsNewChatOpen(true)} title="New chat" className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors">
                                 <Plus className="w-4 h-4" />
                             </button>
@@ -425,7 +520,7 @@ export default function ChatInterface() {
 
                     {/* Tabs */}
                     <div className="flex gap-0.5 p-0.5 bg-muted/60 rounded-lg border border-border">
-                        {(['Recent', 'Groups', 'Contacts', 'Teams'] as const).map(tab => (
+                        {(['Recent', 'Groups', 'Contacts'] as const).map(tab => (
                             <button key={tab} onClick={() => { setActiveTab(tab); setSearchQuery(''); }}
                                 className={cn("flex-1 text-[11px] font-semibold py-1.5 rounded-md transition-all",
                                     activeTab === tab ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/60")}>
@@ -457,21 +552,17 @@ export default function ChatInterface() {
                         displayList.map((item: any) => {
                             const id = item._id;
                             const isConvTab = activeTab === 'Recent' || activeTab === 'Groups';
-                            const isGroup = activeTab === 'Teams' || activeTab === 'Groups' || item.type === 'Group';
-                            const name = activeTab === 'Contacts' ? item.name
-                                : activeTab === 'Teams' ? item.name
-                                : convName(item as Conversation);
+                            const isGroup = activeTab === 'Groups' || item.type === 'Group';
+                            const name = activeTab === 'Contacts' ? item.name : convName(item as Conversation);
                             const img = isConvTab ? convImage(item as Conversation) : item.image;
-                            const subtitle = activeTab === 'Contacts' ? (item.jobTitle || item.role || item.email)
-                                : activeTab === 'Teams' ? `${(item.members?.length || 0)} members`
+                            const subtitle = activeTab === 'Contacts'
+                                ? (item.jobTitle || item.role || item.email)
                                 : ((item.lastMessage as any)?.content || '');
                             const unread = isConvTab && userId ? (item.unreadCounts?.[userId] || 0) : 0;
                             const time = isConvTab && item.updatedAt
                                 ? format(new Date(item.updatedAt), isToday(new Date(item.updatedAt)) ? 'HH:mm' : 'dd MMM')
                                 : null;
-                            const onClick = activeTab === 'Contacts' ? () => startChat(id)
-                                : activeTab === 'Teams' ? () => startChat(id, true)
-                                : () => handleSelectConversation(id);
+                            const onClick = activeTab === 'Contacts' ? () => startChat(id) : () => handleSelectConversation(id);
 
                             return (
                                 <div key={id} onClick={onClick}
@@ -491,9 +582,9 @@ export default function ChatInterface() {
                                                     </span>
                                                 )}
                                                 {(activeTab === 'Recent' || activeTab === 'Groups') && (
-                                                    <button onClick={e => handleDeleteConversation(e, id)}
-                                                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 rounded transition-all">
-                                                        <Trash2 className="w-3 h-3" />
+                                                    <button onClick={e => handleDeleteConversation(e, id)} title="Hide (history preserved)"
+                                                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-amber-500 rounded transition-all">
+                                                        <EyeOff className="w-3 h-3" />
                                                     </button>
                                                 )}
                                             </div>
@@ -541,8 +632,8 @@ export default function ChatInterface() {
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-white">
-                                    <DropdownMenuItem onClick={handleClearHistory}>
-                                        <Archive className="w-4 h-4 mr-2" /> Clear chat history
+                                    <DropdownMenuItem onClick={handleHideConversation}>
+                                        <EyeOff className="w-4 h-4 mr-2" /> Hide conversation
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -601,6 +692,7 @@ export default function ChatInterface() {
                                                         )}
 
                                                         <div className={cn(
+                                                            "group/msg",
                                                             emojiOnly
                                                                 ? "px-1 py-0.5 bg-transparent shadow-none"
                                                                 : cn(
@@ -611,6 +703,16 @@ export default function ChatInterface() {
                                                                     sameAsPrev && (isMe ? "rounded-tr-2xl" : "rounded-tl-2xl")
                                                                 )
                                                         )}>
+                                                            {/* Edit affordance — own text messages only */}
+                                                            {isMe && msg.content && !emojiOnly && !msg._id.startsWith('temp-') && (
+                                                                <button
+                                                                    onClick={() => startEdit(msg)}
+                                                                    title="Edit message"
+                                                                    className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-primary opacity-0 group-hover/msg:opacity-100 transition-opacity"
+                                                                >
+                                                                    <Pencil className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
                                                             {/* Attachments */}
                                                             {msg.attachments && msg.attachments.length > 0 && (
                                                                 <div className="flex flex-col gap-1.5 mb-1.5">
@@ -635,6 +737,7 @@ export default function ChatInterface() {
                                                             {/* Timestamp + read receipt */}
                                                             {!emojiOnly && (
                                                                 <div className={cn("flex items-center justify-end gap-0.5 mt-1", msg.content ? "pl-8" : "")}>
+                                                                    {msg.edited && <span className="text-[10px] text-gray-400 italic mr-0.5">edited</span>}
                                                                     <span className="text-[10px] text-gray-400 whitespace-nowrap">
                                                                         {format(new Date(msg.createdAt), 'HH:mm')}
                                                                     </span>
@@ -662,6 +765,14 @@ export default function ChatInterface() {
 
                         {/* Input bar */}
                         <div className="px-3 py-2.5 bg-[#f0f2f5] border-t border-border shrink-0">
+                            {/* Editing banner */}
+                            {editingId && (
+                                <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                                    <Pencil className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="font-medium">Editing message</span>
+                                    <button type="button" onClick={cancelEdit} className="ml-auto text-amber-600 hover:text-amber-900 font-semibold">Cancel</button>
+                                </div>
+                            )}
                             {/* Pending attachments */}
                             {pendingAttachments.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-2">
@@ -698,11 +809,39 @@ export default function ChatInterface() {
                                             <Icon className="w-3.5 h-3.5" />
                                         </button>
                                     ))}
-                                    <span className="mx-1.5 text-border">|</span>
                                     <button type="button" title="Quote (> )" onMouseDown={e => { e.preventDefault(); handleFormat('> ', ''); }}
                                         className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/8 transition-colors text-[11px] font-bold leading-none">
                                         "
                                     </button>
+
+                                    <span className="mx-1 text-border">|</span>
+
+                                    {/* Text colour */}
+                                    <div className="relative">
+                                        <button type="button" title="Text colour"
+                                            onMouseDown={e => { e.preventDefault(); setColorMenu(m => m === 'fg' ? null : 'fg'); }}
+                                            className={cn("p-1.5 rounded-md transition-colors", colorMenu === 'fg' ? 'bg-black/10 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/8')}>
+                                            <Baseline className="w-3.5 h-3.5" />
+                                        </button>
+                                        {colorMenu === 'fg' && (
+                                            <ColorSwatches swatches={TEXT_SWATCHES} label="Text colour"
+                                                onPick={c => applyColor('fg', c)} onClose={() => setColorMenu(null)} />
+                                        )}
+                                    </div>
+
+                                    {/* Highlight */}
+                                    <div className="relative">
+                                        <button type="button" title="Highlight"
+                                            onMouseDown={e => { e.preventDefault(); setColorMenu(m => m === 'bg' ? null : 'bg'); }}
+                                            className={cn("p-1.5 rounded-md transition-colors", colorMenu === 'bg' ? 'bg-black/10 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/8')}>
+                                            <Highlighter className="w-3.5 h-3.5" />
+                                        </button>
+                                        {colorMenu === 'bg' && (
+                                            <ColorSwatches swatches={HIGHLIGHT_SWATCHES} label="Highlight"
+                                                onPick={c => applyColor('bg', c)} onClose={() => setColorMenu(null)} />
+                                        )}
+                                    </div>
+
                                     <span className="ml-auto text-[10px] text-muted-foreground/50 pr-1 hidden sm:block">Shift+Enter for newline</span>
                                 </div>
 
@@ -857,10 +996,12 @@ export default function ChatInterface() {
                                 onChange={e => setGroupName(e.target.value)}
                             />
 
-                            {/* Selected chips */}
-                            {groupSelected.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 pb-1">
-                                    {groupSelected.map(id => {
+                            {/* Selected chips — you are always a member */}
+                            <div className="flex flex-wrap gap-1.5 pb-1">
+                                <span className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 rounded-full px-2.5 py-1 font-semibold">
+                                    {me?.name ? `${me.name} (You)` : 'You'}
+                                </span>
+                                {groupSelected.length > 0 && groupSelected.map(id => {
                                         const u = availableUsers.find(u => u._id === id);
                                         if (!u) return null;
                                         return (
@@ -873,8 +1014,7 @@ export default function ChatInterface() {
                                             </span>
                                         );
                                     })}
-                                </div>
-                            )}
+                            </div>
 
                             <input
                                 placeholder="Search people to add…"

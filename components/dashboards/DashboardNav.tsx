@@ -50,7 +50,7 @@ export default function DashboardNav({ userRole }: { userRole?: string }) {
 
     return (
         <div className="w-full bg-card border-b border-border py-2 z-30 relative">
-            <div className="flex items-center gap-6 px-6 overflow-x-auto min-h-[50px] no-scrollbar">
+            <div className="flex items-center gap-x-6 gap-y-1 px-6 min-h-[50px] flex-wrap">
                 {navItems.map((link) => {
                     const Icon = link.icon;
                     const isActive = pathname === link.href || pathname.startsWith(link.href + '/');

@@ -9,23 +9,21 @@ declare module "next-auth" {
         user: {
             role: string;
             permissions: string[];
-            /**
-             * By default, TypeScript expects the "email" field to be present.
-             * And we extend the User interface to include the "role".
-             */
+            initial?: string;
         } & DefaultSession["user"]
     }
 
     interface User {
         role: string;
         permissions?: string[];
+        initial?: string;
     }
 }
 
 declare module "next-auth/jwt" {
-    /** Returned by the `jwt` callback and `getToken`, when using JWT sessions */
     interface JWT {
         role: string;
         permissions: string[];
+        initial?: string;
     }
 }

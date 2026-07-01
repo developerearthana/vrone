@@ -57,6 +57,81 @@ const SEED_TEMPLATES = [
             { id: "re4", name: "Re-construction", order: 3, modules: ["Construction", "MEP"] },
             { id: "re5", name: "Finishing", order: 4, modules: ["Finishing"] },
         ]
+    },
+    {
+        name: "Software Development",
+        description: "End-to-end software project lifecycle from discovery to deployment.",
+        stages: [
+            { id: "sd1", name: "Discovery & Requirements", order: 0, modules: ["Docs", "Stakeholder Interviews", "User Stories"] },
+            { id: "sd2", name: "System Design & Architecture", order: 1, modules: ["Tech Stack", "DB Schema", "API Design", "Wireframes"] },
+            { id: "sd3", name: "UI/UX Design", order: 2, modules: ["Figma", "Prototypes", "Design Review"] },
+            { id: "sd4", name: "Frontend Development", order: 3, modules: ["React", "Components", "Responsive UI"] },
+            { id: "sd5", name: "Backend Development", order: 4, modules: ["API", "Database", "Auth", "Business Logic"] },
+            { id: "sd6", name: "Integration & Testing", order: 5, modules: ["Unit Tests", "QA", "Bug Fixes", "UAT"] },
+            { id: "sd7", name: "Deployment & DevOps", order: 6, modules: ["CI/CD", "Hosting", "Domain", "SSL"] },
+            { id: "sd8", name: "Go Live & Handover", order: 7, modules: ["Training", "Docs", "Support Handover"] },
+        ]
+    },
+    {
+        name: "Mobile App Development",
+        description: "iOS and Android app development workflow.",
+        stages: [
+            { id: "ma1", name: "Concept & Scope", order: 0, modules: ["Docs", "User Personas", "Feature List"] },
+            { id: "ma2", name: "UX Research & Wireframes", order: 1, modules: ["User Flows", "Wireframes", "Competitor Analysis"] },
+            { id: "ma3", name: "UI Design", order: 2, modules: ["Figma", "Style Guide", "Prototype"] },
+            { id: "ma4", name: "Development Sprint 1", order: 3, modules: ["Core Features", "Auth", "Navigation"] },
+            { id: "ma5", name: "Development Sprint 2", order: 4, modules: ["Feature Modules", "API Integration", "Push Notifications"] },
+            { id: "ma6", name: "QA & Beta Testing", order: 5, modules: ["Testing", "Bug Fixes", "Performance"] },
+            { id: "ma7", name: "App Store Submission", order: 6, modules: ["Play Store", "App Store", "Review Compliance"] },
+            { id: "ma8", name: "Launch & Support", order: 7, modules: ["Marketing", "Analytics", "Support"] },
+        ]
+    },
+    {
+        name: "Digital Marketing Campaign",
+        description: "Full campaign lifecycle from strategy to reporting.",
+        stages: [
+            { id: "dm1", name: "Strategy & Brief", order: 0, modules: ["Goals", "Target Audience", "Budget"] },
+            { id: "dm2", name: "Content Planning", order: 1, modules: ["Content Calendar", "Keywords", "Creatives"] },
+            { id: "dm3", name: "Creative Production", order: 2, modules: ["Graphics", "Videos", "Copywriting"] },
+            { id: "dm4", name: "Campaign Setup", order: 3, modules: ["Google Ads", "Meta Ads", "Email", "SEO"] },
+            { id: "dm5", name: "Campaign Live", order: 4, modules: ["Monitoring", "A/B Testing", "Optimization"] },
+            { id: "dm6", name: "Reporting & Analysis", order: 5, modules: ["Analytics", "ROI Report", "Learnings"] },
+        ]
+    },
+    {
+        name: "HR Project Flow",
+        description: "HR initiatives such as policy rollout, hiring drives, or training programs.",
+        stages: [
+            { id: "hr1", name: "Requirement & Planning", order: 0, modules: ["Headcount Plan", "JD Creation", "Approvals"] },
+            { id: "hr2", name: "Sourcing & Screening", order: 1, modules: ["Job Posting", "Resume Review", "Initial Screen"] },
+            { id: "hr3", name: "Interviews & Assessment", order: 2, modules: ["Technical Round", "HR Round", "Assignment"] },
+            { id: "hr4", name: "Offer & Onboarding", order: 3, modules: ["Offer Letter", "Background Check", "Joining Formalities"] },
+            { id: "hr5", name: "Induction & Training", order: 4, modules: ["Orientation", "Role Training", "Tool Access"] },
+            { id: "hr6", name: "Closure & Reporting", order: 5, modules: ["MIS", "Feedback", "Report"] },
+        ]
+    },
+    {
+        name: "Event Management",
+        description: "Corporate events, seminars, product launches, or client events.",
+        stages: [
+            { id: "ev1", name: "Event Planning & Brief", order: 0, modules: ["Objectives", "Budget", "Guest List"] },
+            { id: "ev2", name: "Venue & Logistics", order: 1, modules: ["Venue Booking", "Catering", "AV Setup"] },
+            { id: "ev3", name: "Promotions & Invitations", order: 2, modules: ["Invites", "Social Media", "Email Blast"] },
+            { id: "ev4", name: "Event Execution", order: 3, modules: ["On-site Coordination", "Registration", "Agenda"] },
+            { id: "ev5", name: "Post Event", order: 4, modules: ["Feedback", "Report", "Thank You Notes"] },
+        ]
+    },
+    {
+        name: "Procurement & Vendor Management",
+        description: "End-to-end procurement from requirement to purchase order closure.",
+        stages: [
+            { id: "pv1", name: "Requirement Identification", order: 0, modules: ["Indent", "Specs", "Budget Approval"] },
+            { id: "pv2", name: "Vendor Identification", order: 1, modules: ["RFQ", "Vendor List", "Shortlisting"] },
+            { id: "pv3", name: "Quotation & Negotiation", order: 2, modules: ["Quotes", "Comparison", "Negotiation"] },
+            { id: "pv4", name: "Purchase Order", order: 3, modules: ["PO Creation", "Approval", "Dispatch"] },
+            { id: "pv5", name: "Delivery & Inspection", order: 4, modules: ["GRN", "Quality Check", "Invoice"] },
+            { id: "pv6", name: "Payment & Closure", order: 5, modules: ["Payment", "Docs Archival", "Vendor Rating"] },
+        ]
     }
 ];
 
@@ -85,9 +160,13 @@ export async function getProjectTemplates() {
     // Always seed missing mood board items
     await seedMoodBoardIfEmpty();
 
-    const count = await ProjectTemplate.countDocuments({ isActive: true });
-    if (count === 0) {
-        await ProjectTemplate.insertMany(SEED_TEMPLATES);
+    // Insert any seed templates that don't exist by name yet
+    const existingNames = new Set(
+        (await ProjectTemplate.find({}, 'name').lean()).map((t: any) => t.name)
+    );
+    const toInsert = SEED_TEMPLATES.filter(t => !existingNames.has(t.name));
+    if (toInsert.length > 0) {
+        await ProjectTemplate.insertMany(toInsert);
     }
     const templates = await ProjectTemplate.find({ isActive: true }).sort({ createdAt: 1 }).lean() as any[];
 
@@ -142,6 +221,34 @@ export async function deleteProjectTemplate(id: string) {
     } catch (error: any) {
         return { success: false, error: error.message };
     }
+}
+
+// Merges stages from multiple templates into a new custom template and returns its name.
+// Used when a project is created with multiple workflows selected.
+export async function createMergedTemplate(projectName: string, templateNames: string[]): Promise<string> {
+    await connectToDatabase();
+    const templates = await ProjectTemplate.find({ name: { $in: templateNames }, isActive: true }).lean() as any[];
+
+    // Merge stages in selection order, re-numbering globally
+    let order = 0;
+    const mergedStages: any[] = [];
+    for (const tName of templateNames) {
+        const t = templates.find((x: any) => x.name === tName);
+        if (!t) continue;
+        const sorted = [...(t.stages || [])].sort((a: any, b: any) => a.order - b.order);
+        for (const s of sorted) {
+            mergedStages.push({ ...s, id: `m-${order}-${s.id || s.name.replace(/\s+/g, '-').toLowerCase()}`, order: order++ });
+        }
+    }
+
+    const mergedName = `${projectName} — Custom Workflow`;
+    // Upsert: if a merged template with this name already exists, update it
+    await ProjectTemplate.findOneAndUpdate(
+        { name: mergedName },
+        { name: mergedName, description: `Combined workflow: ${templateNames.join(', ')}`, stages: mergedStages, isActive: true },
+        { upsert: true, new: true }
+    );
+    return mergedName;
 }
 
 export async function getProjectTemplateByName(name: string) {

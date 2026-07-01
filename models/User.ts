@@ -35,6 +35,7 @@ const UserSchema: Schema = new Schema(
         dept: { type: String, default: 'General' },
         status: { type: String, enum: ['Active', 'Inactive', 'On Leave'], default: 'Active' },
         jobTitle: { type: String },
+        initial: { type: String },
         customRole: { type: Schema.Types.ObjectId, ref: 'Role' },
         customPermissions: { type: [String], default: [] }, // User-specific permission overrides
         provider: { type: String, enum: ['credentials', 'google'], default: 'credentials' },

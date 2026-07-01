@@ -53,7 +53,31 @@ export async function sendMessage(conversationId: string, content: string, attac
     }
 }
 
-export async function getMessages(conversationId: string, limit = 50) {
+export async function editMessage(messageId: string, content: string) {
+    try {
+        await connectToDatabase();
+        const session = await auth();
+        if (!session?.user?.id) throw new Error('Unauthorized');
+        if (!content.trim()) throw new Error('Message cannot be empty');
+
+        const msg = await Message.findById(messageId);
+        if (!msg) throw new Error('Message not found');
+        // Only the original sender may edit their own message
+        if (String(msg.sender) !== String(session.user.id)) throw new Error('You can only edit your own messages');
+
+        msg.content = content;
+        msg.edited = true;
+        msg.editedAt = new Date();
+        await msg.save();
+
+        return { success: true, data: JSON.parse(JSON.stringify(msg.toObject())) };
+    } catch (error: any) {
+        console.error('Edit Message Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getMessages(conversationId: string, limit = 200) {
     try {
         await connectToDatabase();
         const session = await auth();
@@ -163,12 +187,13 @@ export async function clearChatHistory(conversationId: string, beforeDate?: stri
         // If they explicitly click "Clear History" inside the chat, they probably mean DELETE ALL.
         // So I will keep this destructive for now as per original code, but "Board Area" text likely referred to the list.
 
-        const query: any = { conversationId };
-        if (beforeDate) {
-            query.createdAt = { $lt: new Date(beforeDate) };
-        }
-
-        await Message.deleteMany(query);
+        // Corporate policy: chat history is a permanent record and must NOT be destroyed.
+        // "Clear" now only hides the conversation from the user's list (archive), preserving
+        // every message. Kept the signature for backward compatibility.
+        void beforeDate;
+        await Conversation.findByIdAndUpdate(conversationId, {
+            $addToSet: { archivedBy: session.user.id }
+        });
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };

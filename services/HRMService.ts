@@ -5,48 +5,101 @@ import User from '@/models/User';
 import Employee from '@/models/Employee';
 import LeaveRequest from '@/models/LeaveRequest';
 import Attendance from '@/models/Attendance';
+import Candidate from '@/models/Candidate';
 import { sanitizeObject } from '@/lib/sanitize';
+
+// Compute how many days until the next occurrence of a birthday from `from`.
+// Returns null if no valid DOB. Handles year rollover.
+function daysUntilBirthday(dob: Date, from: Date): number | null {
+    if (!dob || isNaN(dob.getTime())) return null;
+    const next = new Date(from.getFullYear(), dob.getMonth(), dob.getDate());
+    if (next < from) next.setFullYear(from.getFullYear() + 1);
+    return Math.round((next.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+}
 
 export class HRMService {
     async getDashboardStats() {
         await connectToDatabase();
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const nextDay = new Date(today);
+        nextDay.setDate(nextDay.getDate() + 1);
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-        const [activeEmployees, onLeaveUsers, checkedInRecords, newJoinersList] = await Promise.all([
-            Employee.find({ status: 'Active' }, 'name email image dept jobTitle employeeId'),
+        const [activeEmployees, onLeaveRecords, todayAttendance, newJoinersList, candidates] = await Promise.all([
+            Employee.find({ status: 'Active' }, 'name email image dept jobTitle employeeId dateOfBirth').lean(),
             LeaveRequest.find({
                 status: 'Approved',
-                startDate: { $lte: new Date() },
-                endDate: { $gte: new Date() }
-            }),
+                startDate: { $lte: now },
+                endDate: { $gte: now }
+            }).populate('userId', 'name email image dept').lean(),
             Attendance.find({
-                date: { $gte: today },
-                $or: [{ status: 'Present' }, { status: 'Half-Day' }]
-            }).populate('userId', 'name email role image dept'),
+                date: { $gte: today, $lt: nextDay },
+                punchIn: { $exists: true, $ne: null }
+            }).populate('userId', 'name email role image dept').lean(),
             Employee.find({
                 createdAt: { $gte: startOfMonth }
-            }, 'name email image dept jobTitle employeeId')
+            }, 'name email image dept jobTitle employeeId createdAt').lean(),
+            Candidate.find({}, 'status').lean(),
         ]);
 
-        const attendanceMap = new Map();
-        checkedInRecords.forEach((a: any) => { if (a.userId) attendanceMap.set(a.userId._id?.toString(), a) });
+        // User and Employee are SEPARATE collections joined by email — attendance.userId points to
+        // a User, so we key the attendance map by the punched-in user's email, not by _id
+        // (Employee._id !== User._id, which previously made every employee show as absent).
+        const attByEmail = new Map<string, any>();
+        todayAttendance.forEach((a: any) => {
+            const email = a.userId?.email?.toLowerCase();
+            if (email) attByEmail.set(email, a);
+        });
 
-        const absenteesList = activeEmployees.filter(emp => !attendanceMap.has(emp._id.toString()));
-        const checkedInList = checkedInRecords.map((a: any) => a.userId).filter(Boolean);
+        const checkedInList: any[] = [];
+        const absenteesList: any[] = [];
+        let officeCount = 0;
+        let wfhCount = 0;
+
+        activeEmployees.forEach((emp: any) => {
+            const rec = emp.email ? attByEmail.get(emp.email.toLowerCase()) : null;
+            if (rec && rec.status !== 'Absent') {
+                const mode = rec.workMode === 'Remote' ? 'Remote' : 'Office';
+                if (mode === 'Remote') wfhCount++; else officeCount++;
+                checkedInList.push({ ...emp, workMode: mode, status: rec.status, punchIn: rec.punchIn });
+            } else {
+                absenteesList.push(emp);
+            }
+        });
+
+        const onLeaveList = onLeaveRecords.map((l: any) => l.userId).filter(Boolean);
+
+        // Upcoming birthdays within the next 30 days, soonest first
+        const birthdays = activeEmployees
+            .map((emp: any) => {
+                const days = emp.dateOfBirth ? daysUntilBirthday(new Date(emp.dateOfBirth), today) : null;
+                return days !== null && days <= 30
+                    ? { name: emp.name, dept: emp.dept, jobTitle: emp.jobTitle, image: emp.image, date: emp.dateOfBirth, days }
+                    : null;
+            })
+            .filter(Boolean)
+            .sort((a: any, b: any) => a.days - b.days);
+
+        // Recruitment pipeline — live counts per stage
+        const pipeline: Record<string, number> = { Applied: 0, Screening: 0, Interview: 0, Selected: 0, Rejected: 0 };
+        candidates.forEach((c: any) => { if (pipeline[c.status] !== undefined) pipeline[c.status]++; });
 
         return JSON.parse(JSON.stringify({
             totalEmployees: activeEmployees.length,
-            onLeaveToday: onLeaveUsers.length,
+            onLeaveToday: onLeaveList.length,
             checkedInToday: checkedInList.length,
             newJoiners: newJoinersList.length,
+            workMode: { office: officeCount, wfh: wfhCount },
+            pipeline,
             lists: {
                 employees: activeEmployees,
                 absentees: absenteesList,
                 checkedIn: checkedInList,
-                newJoiners: newJoinersList
+                newJoiners: newJoinersList,
+                onLeave: onLeaveList,
+                birthdays,
             }
         }));
     }
@@ -134,7 +187,7 @@ export class HRMService {
 
         const records = await Attendance.find({
             date: { $gte: targetDate, $lt: nextDay }
-        }).populate('userId', 'name email dept role image').sort({ punchIn: 1 }).lean();
+        }).populate('userId', 'name email dept role').sort({ punchIn: 1 }).lean();
 
         return JSON.parse(JSON.stringify(records));
     }
@@ -144,9 +197,11 @@ export class HRMService {
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 0);
 
+        // Note: user `image` (often a large base64 data URI) is deliberately excluded — the report
+        // renders initials and payroll only needs hours/status, so pulling avatars bloats the payload.
         const records = await Attendance.find({
             date: { $gte: startDate, $lte: endDate }
-        }).populate('userId', 'name email dept role image').sort({ date: -1, punchIn: 1 }).lean();
+        }).populate('userId', 'name email dept role').sort({ date: -1, punchIn: 1 }).lean();
 
         return JSON.parse(JSON.stringify(records));
     }

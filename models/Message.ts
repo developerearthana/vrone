@@ -6,6 +6,8 @@ export interface IMessage extends Document {
     content: string;
     attachments: string[];
     readBy: string[]; // User IDs who have read the message
+    edited?: boolean;
+    editedAt?: Date;
 }
 
 const MessageSchema: Schema = new Schema(
@@ -14,7 +16,9 @@ const MessageSchema: Schema = new Schema(
         sender: { type: String, required: true },
         content: { type: String, required: true },
         attachments: [{ type: String }],
-        readBy: [{ type: String }]
+        readBy: [{ type: String }],
+        edited: { type: Boolean, default: false },
+        editedAt: { type: Date },
     },
     { timestamps: true }
 );

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Eye, Upload, Shield, CheckCircle, Trash2, Loader2, Download,
-    XCircle, Clock, Check, X
+    XCircle, Clock, Check, X, FileText, ExternalLink
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CardWrapper } from '@/components/ui/page-wrapper';
@@ -33,6 +33,20 @@ interface DocItem {
     status: 'pending' | 'approved' | 'rejected';
     rejectionReason?: string;
 }
+
+// File-type detection from the document name or data: URL mime, used to pick the right preview renderer.
+function extOf(doc: DocItem | null): string {
+    if (!doc) return '';
+    if (doc.url?.startsWith('data:')) {
+        const mime = doc.url.slice(5, doc.url.indexOf(';'));
+        return mime.split('/')[1] || '';
+    }
+    return (doc.name?.split('.').pop() || doc.url?.split('.').pop() || '').toLowerCase();
+}
+const isImage = (d: DocItem | null) => ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(extOf(d)) || !!d?.url?.includes('data:image/');
+const isPdf = (d: DocItem | null) => extOf(d) === 'pdf' || !!d?.url?.includes('application/pdf');
+const isVideo = (d: DocItem | null) => ['mp4', 'webm', 'ogg', 'mov'].includes(extOf(d)) || !!d?.url?.includes('data:video/');
+const isAudio = (d: DocItem | null) => ['mp3', 'wav', 'oga', 'm4a'].includes(extOf(d)) || !!d?.url?.includes('data:audio/');
 
 const CATEGORIES = ['All', 'Identity', 'Contract', 'Certification', 'Other'];
 const STATUS_FILTERS = ['All', 'Pending', 'Approved', 'Rejected'];
@@ -72,6 +86,8 @@ export function DocumentVault() {
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [previewFile, setPreviewFile] = useState<DocItem | null>(null);
+    const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+    const blobUrlRef = useRef<string | null>(null);
     const [rejectingId, setRejectingId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [actioningId, setActioningId] = useState<string | null>(null);
@@ -97,6 +113,31 @@ export function DocumentVault() {
     }, [refreshKey, isAdminOrHR, session?.user?.id]);
 
     useEffect(() => { loadDocs(); }, [loadDocs]);
+
+    // Convert base64 data: URLs to Blob URLs for preview — browsers block data: URIs in
+    // <iframe>/<embed> under the default CSP, which is why PDFs previously showed blank.
+    useEffect(() => {
+        if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+        if (!previewFile) { setPreviewBlobUrl(null); return; }
+        const src = previewFile.url;
+        if (src?.startsWith('data:')) {
+            try {
+                const [header, b64] = src.split(',');
+                const mime = header.slice(5, header.indexOf(';'));
+                const binary = atob(b64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+                blobUrlRef.current = url;
+                setPreviewBlobUrl(url);
+            } catch {
+                setPreviewBlobUrl(src);
+            }
+        } else {
+            setPreviewBlobUrl(src);
+        }
+        return () => { if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; } };
+    }, [previewFile]);
 
     // ── Upload flow ──────────────────────────────────────────
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -451,20 +492,44 @@ export function DocumentVault() {
             {/* Preview Dialog */}
             <Dialog open={!!previewFile} onOpenChange={o => !o && setPreviewFile(null)}>
                 <DialogContent className="glass-card w-[95vw] max-w-4xl h-[85vh] sm:h-[80vh] flex flex-col p-0 overflow-hidden">
-                    <div className="p-4 border-b flex justify-between items-center bg-background">
-                        <h3 className="font-bold truncate max-w-[60%]">{previewFile?.name}</h3>
-                        <div className="flex items-center gap-3">
-                            <a href={previewFile?.url} download className="text-primary hover:underline text-sm flex items-center gap-1">
-                                <Download className="w-4 h-4" /> Download
-                            </a>
-                            <button className="text-sm font-medium hover:text-gray-900 border p-1 border-gray-100 rounded-md px-3" onClick={() => setPreviewFile(null)}>Close</button>
+                    <div className="p-4 border-b border-border flex justify-between items-center bg-background">
+                        <h3 className="font-bold truncate max-w-[55%] text-foreground">{previewFile?.name}</h3>
+                        <div className="flex items-center gap-2">
+                            {isPdf(previewFile) && previewBlobUrl && (
+                                <a href={previewBlobUrl} target="_blank" rel="noreferrer"
+                                    className="text-primary hover:underline text-sm flex items-center gap-1 px-2 py-1">
+                                    <ExternalLink className="w-4 h-4" /> Open tab
+                                </a>
+                            )}
+                            {previewBlobUrl && (
+                                <a href={previewBlobUrl} download={previewFile?.name}
+                                    className="text-primary hover:underline text-sm flex items-center gap-1 px-2 py-1">
+                                    <Download className="w-4 h-4" /> Download
+                                </a>
+                            )}
+                            <button className="text-sm font-medium text-foreground hover:bg-muted border border-border rounded-md px-3 py-1" onClick={() => setPreviewFile(null)}>Close</button>
                         </div>
                     </div>
-                    <div className="flex-1 bg-white p-4 overflow-hidden flex items-center justify-center">
-                        {previewFile?.url.includes('data:image/') ? (
-                            <img src={previewFile?.url} alt={previewFile?.name} className="max-w-full max-h-full object-contain shadow-lg" />
+                    <div className="flex-1 bg-muted/30 overflow-hidden flex items-center justify-center">
+                        {!previewBlobUrl ? (
+                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                        ) : isImage(previewFile) ? (
+                            <img src={previewBlobUrl} alt={previewFile?.name} className="max-w-full max-h-full object-contain shadow-lg" />
+                        ) : isPdf(previewFile) ? (
+                            <embed src={`${previewBlobUrl}#toolbar=1`} type="application/pdf" className="w-full h-full" />
+                        ) : isVideo(previewFile) ? (
+                            <video src={previewBlobUrl} controls className="max-w-full max-h-full" />
+                        ) : isAudio(previewFile) ? (
+                            <audio src={previewBlobUrl} controls className="w-4/5" />
                         ) : (
-                            <iframe src={previewFile?.url} className="w-full h-full rounded shadow-lg bg-gray-50 border-none" title={previewFile?.name} />
+                            <div className="flex flex-col items-center gap-3 text-center p-8">
+                                <FileText className="w-14 h-14 text-muted-foreground/40" />
+                                <p className="text-sm text-muted-foreground">Preview not available for this file type.</p>
+                                <a href={previewBlobUrl} download={previewFile?.name}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90">
+                                    <Download className="w-4 h-4" /> Download file
+                                </a>
+                            </div>
                         )}
                     </div>
                 </DialogContent>

@@ -23,7 +23,7 @@ export default function MastersLayout({ children }: { children: React.ReactNode 
 
     return (
         <div className="flex flex-col h-full gap-6">
-            <nav className="flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar">
+            <nav className="flex items-center gap-1 border-b border-border pb-0 flex-wrap gap-y-1">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');

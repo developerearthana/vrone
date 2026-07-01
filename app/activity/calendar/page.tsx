@@ -25,6 +25,8 @@ import {
     createCompanyEvent, updateCompanyEvent, deleteCompanyEvent,
 } from '@/app/actions/company-calendar';
 import { getEmployees } from '@/app/actions/employee';
+import { getHolidays, seedHolidays, setHolidayWorkingDay } from '@/app/actions/activity/holidays';
+import { holidayTheme } from '@/lib/holiday-themes';
 import type { CompanyEventType, MeetingMode } from '@/models/CompanyEvent';
 
 // ── Color configs ────────────────────────────────────────────
@@ -86,6 +88,7 @@ export default function UnifiedCalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [personalEvents, setPersonalEvents] = useState<any[]>([]);
     const [companyEvents, setCompanyEvents] = useState<any[]>([]);
+    const [holidays, setHolidays] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -110,16 +113,20 @@ export default function UnifiedCalendarPage() {
         setLoading(true);
         const s = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
         const e = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
-        const [pRes, cRes] = await Promise.all([
+        const [pRes, cRes, hRes] = await Promise.all([
             getEvents(s, e),
             isAdmin ? getCompanyEvents(s, e) : getCompanyEventsForUser(s, e, userId),
+            getHolidays(s, e),
         ]);
         if (pRes.success) setPersonalEvents(pRes.data);
         if (cRes.success) setCompanyEvents(cRes.data);
+        if (hRes.success) setHolidays(hRes.data);
         setLoading(false);
     }, [userId, currentDate, isAdmin]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
+    // Seed the Tamil Nadu + National holiday set once, then refresh
+    useEffect(() => { seedHolidays().then(r => { if (r.success && r.inserted) fetchAll(); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { getEmployees().then(e => setEmployees(e || [])).catch(() => setEmployees([])); }, []);
 
     // ── Day event helpers ──────────────────────────────────────
@@ -143,6 +150,18 @@ export default function UnifiedCalendarPage() {
         }) : [];
         const company = showCompany ? companyEvents.filter(ev => isSameDay(parseISO(ev.start), day)) : [];
         return { personal, company };
+    };
+
+    const holidayForDay = (day: Date) =>
+        holidays.find(h => isSameDay(parseISO(h.date), day));
+
+    const toggleHolidayWorking = async (h: any) => {
+        const next = !h.isWorkingDay;
+        setHolidays(prev => prev.map(x => x._id === h._id ? { ...x, isWorkingDay: next } : x));
+        setDetailEvent((d: any) => d && d._id === h._id ? { ...d, isWorkingDay: next } : d);
+        const res = await setHolidayWorkingDay(h._id, next);
+        if (!res.success) { toast.error(res.error || 'Failed to update'); fetchAll(); }
+        else toast.success(next ? `${h.name} marked as a working day` : `${h.name} restored as a holiday`);
     };
 
     // ── Agenda data ────────────────────────────────────────────
@@ -603,23 +622,36 @@ export default function UnifiedCalendarPage() {
                                         const shownCompany = company.slice(0, Math.max(0, limit - personal.length));
                                         const dayKey = day.toISOString();
 
+                                        const holiday = holidayForDay(day);
+                                        const activeHoliday = holiday && !holiday.isWorkingDay ? holiday : null;
+                                        const theme = activeHoliday ? holidayTheme(activeHoliday.theme) : null;
+
                                         return (
                                             <div
                                                 key={dayKey}
                                                 onClick={() => openCreate(day)}
                                                 className={cn(
-                                                    "cursor-pointer transition-colors",
+                                                    "cursor-pointer transition-colors relative",
                                                     view === 'week' ? 'min-h-[280px]' : 'min-h-[100px]',
                                                     !isCurrentMonth && view === 'month' ? 'bg-muted/20' : '',
-                                                    todayDay ? 'bg-primary/[0.03]' : 'hover:bg-muted/20',
-                                                    isSun && isCurrentMonth && !todayDay ? 'bg-red-50/20' : '',
+                                                    // Holiday theme takes precedence over the default cell tints
+                                                    activeHoliday && theme ? theme.cell :
+                                                        todayDay ? 'bg-primary/[0.03]' : 'hover:bg-muted/20',
+                                                    activeHoliday && theme?.festive ? 'holiday-festive' : '',
+                                                    isSun && isCurrentMonth && !todayDay && !activeHoliday ? 'bg-red-50/20' : '',
                                                 )}
                                             >
-                                                <div className="flex justify-end p-1.5 pb-0.5">
+                                                <div className="flex justify-between items-center p-1.5 pb-0.5">
+                                                    {activeHoliday
+                                                        ? <span className="text-sm leading-none select-none" title={activeHoliday.name}>{theme?.emoji}</span>
+                                                        : holiday?.isWorkingDay
+                                                            ? <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-600/70">Working</span>
+                                                            : <span />}
                                                     <span className={cn(
                                                         "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
                                                         todayDay ? 'bg-primary text-white shadow-sm shadow-primary/30' :
                                                         !isCurrentMonth ? 'text-muted-foreground/40' :
+                                                        activeHoliday ? 'text-foreground' :
                                                         isSun ? 'text-red-400' : 'text-foreground'
                                                     )}>
                                                         {format(day, 'd')}
@@ -627,6 +659,19 @@ export default function UnifiedCalendarPage() {
                                                 </div>
                                                 {(isCurrentMonth || view === 'week') && (
                                                     <div className="px-1 pb-1 space-y-0.5">
+                                                        {/* Full-day holiday ribbon — spans the cell, distinct from events/todos */}
+                                                        {holiday && (
+                                                            <button
+                                                                onClick={e => { e.stopPropagation(); setDetailEvent({ ...holiday, _isHoliday: true }); }}
+                                                                className={cn(
+                                                                    "w-full flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-bold leading-tight text-left",
+                                                                    activeHoliday && theme ? cn(theme.chip, 'shadow-sm') : 'bg-muted text-muted-foreground line-through decoration-1'
+                                                                )}
+                                                                title={holiday.isWorkingDay ? `${holiday.name} (working day)` : holiday.name}
+                                                            >
+                                                                <span className="truncate">{holiday.name}</span>
+                                                            </button>
+                                                        )}
                                                         {shownPersonal.map((ev: any) => renderPill(ev, false, dayKey))}
                                                         {shownCompany.map((ev: any) => renderPill(ev, true, dayKey))}
                                                         {overflow > 0 && (
@@ -649,7 +694,47 @@ export default function UnifiedCalendarPage() {
                 <div className="fixed inset-0 z-40 flex items-center justify-center p-4" onClick={() => setDetailEvent(null)}>
                     <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
                     <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
-                        {(() => {
+                        {detailEvent._isHoliday ? (() => {
+                            const th = holidayTheme(detailEvent.theme);
+                            const working = detailEvent.isWorkingDay;
+                            return (
+                                <>
+                                    <div className="flex items-center justify-between">
+                                        <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full text-white", working ? 'bg-emerald-600' : th.chip)}>
+                                            {working ? 'Working Day' : `${detailEvent.type} Holiday`}
+                                        </span>
+                                        <button onClick={() => setDetailEvent(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="flex items-start gap-2.5">
+                                        <span className="text-2xl leading-none">{th.emoji}</span>
+                                        <div>
+                                            <h3 className="font-bold text-foreground text-base leading-snug">{detailEvent.name}</h3>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {format(parseISO(detailEvent.date), 'EEEE, dd MMMM yyyy')} · {detailEvent.region}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {working
+                                        ? <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">This holiday has been switched to a regular working day.</p>
+                                        : <p className="text-xs text-muted-foreground">🎉 Full-day holiday — office closed.</p>}
+                                    {isAdmin ? (
+                                        <div className="pt-2 border-t border-border">
+                                            <button
+                                                onClick={() => toggleHolidayWorking(detailEvent)}
+                                                className={cn("w-full text-xs font-semibold py-2 rounded-lg transition-colors",
+                                                    working ? 'bg-primary text-white hover:bg-primary/90' : 'bg-emerald-600 text-white hover:bg-emerald-700')}
+                                            >
+                                                {working ? 'Restore as Holiday' : 'Switch to Working Day'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[10px] text-muted-foreground/70 pt-1">Only admins can change holiday status.</p>
+                                    )}
+                                </>
+                            );
+                        })() : (() => {
                             const isComp = !!detailEvent._isCompany;
                             const cfg = isComp
                                 ? (COMPANY_COLORS[detailEvent.type] || { dot: 'bg-stone-400', bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border', label: detailEvent.type })

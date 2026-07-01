@@ -2,7 +2,19 @@
 
 import connectToDatabase from "@/lib/db";
 import Employee from "@/models/Employee";
+import User from "@/models/User";
 import { revalidatePath } from "next/cache";
+
+function deriveInitial(name: string, explicit?: string): string | undefined {
+    if (explicit?.trim()) return explicit.trim();
+    const words = name.trim().split(/\s+/);
+    if (words.length < 2) return undefined;
+    const first = words[0];
+    // South-Indian format: single-letter first word is the initial (e.g. "P Dhanakotti")
+    if (first.replace(/\./g, '').length === 1) return first.replace(/\./g, '').toUpperCase();
+    // Otherwise: last word's first letter is the initial
+    return words[words.length - 1].charAt(0).toUpperCase();
+}
 
 export async function getEmployees() {
     try {
@@ -85,6 +97,15 @@ export async function createEmployee(data: CreateEmployeeData) {
             } : undefined,
         });
 
+        // Sync image, name, initial to the linked User account (matched by email)
+        if (data.email) {
+            const initial = deriveInitial(data.name, data.initial);
+            const userSync: any = { name: data.name };
+            if (data.image) userSync.image = data.image;
+            if (initial) userSync.initial = initial;
+            await User.findOneAndUpdate({ email: data.email }, { $set: userSync });
+        }
+
         revalidatePath("/hrm/employees");
         return { success: true, data: JSON.parse(JSON.stringify(employee)) };
     } catch (error: any) {
@@ -130,6 +151,16 @@ export async function updateEmployee(id: string, data: CreateEmployeeData) {
 
         const employee = await Employee.findByIdAndUpdate(id, updateData, { new: true });
         if (!employee) return { success: false, error: "Employee not found" };
+
+        // Sync image, name, initial to the linked User account (matched by email)
+        const emailToSync = data.email || (employee as any).email;
+        if (emailToSync) {
+            const initial = deriveInitial(data.name, data.initial);
+            const userSync: any = { name: data.name };
+            if (data.image) userSync.image = data.image;
+            if (initial !== undefined) userSync.initial = initial;
+            await User.findOneAndUpdate({ email: emailToSync }, { $set: userSync });
+        }
 
         revalidatePath("/hrm/employees");
         return { success: true, data: JSON.parse(JSON.stringify(employee)) };

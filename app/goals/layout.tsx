@@ -22,7 +22,7 @@ export default function GoalsLayout({ children }: { children: React.ReactNode })
 
     return (
         <div className="flex flex-col h-full gap-6">
-            <nav className="flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar">
+            <nav className="flex items-center gap-1 border-b border-border pb-0 flex-wrap gap-y-1">
                 {goalsLinks.map((link) => {
                     const Icon = link.icon;
                     const isActive = link.exact ? pathname === link.href : pathname === link.href || pathname?.startsWith(link.href + '/');

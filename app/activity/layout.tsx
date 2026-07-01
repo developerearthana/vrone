@@ -11,7 +11,7 @@ const allLinks = [
     { name: 'Calendar', href: '/activity/calendar', icon: Calendar, exact: false, adminOnly: false },
     { name: 'Team Tasks', href: '/activity/todo', icon: CheckSquare, exact: false, adminOnly: false },
     { name: 'Chat', href: '/activity/chat', icon: MessageSquare, exact: false, adminOnly: false },
-    { name: 'Documents', href: '/activity/documents', icon: FileText, exact: false, adminOnly: true },
+    { name: 'Documents', href: '/activity/documents', icon: FileText, exact: false, adminOnly: false },
 ];
 
 export default function ActivityLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +23,7 @@ export default function ActivityLayout({ children }: { children: React.ReactNode
 
     return (
         <div className="flex flex-col h-full gap-6">
-            <nav className="flex items-center gap-1 border-b border-border pb-0 overflow-x-auto no-scrollbar">
+            <nav className="flex items-center gap-1 border-b border-border pb-0 flex-wrap gap-y-1">
                 {links.map(link => {
                     const Icon = link.icon;
                     const isActive = link.exact
