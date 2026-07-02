@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    Send, Search, MoreVertical, Paperclip, Smile,
+    Search, MoreVertical, Paperclip, Smile,
     Check, CheckCheck, Plus, X, Users, EyeOff, Phone,
-    Loader2, ArrowLeft, Bold, Italic, Strikethrough, Code, Pencil, Baseline, Highlighter,
+    Loader2, ArrowLeft, Pencil,
+    Reply, Trash2, CornerUpLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -13,23 +14,32 @@ import { toast } from 'sonner';
 import {
     getConversations, getMessages, sendMessage, createConversation,
     getUsersForChat, deleteConversation, markAsRead, editMessage,
+    toggleReaction, deleteMessageForEveryone,
 } from '@/app/actions/activity/chat';
 import { playChatPing } from '@/lib/chat-notify';
+import { isHtmlContent, sanitizeChatHtml, normalizeReadBy, type ReadEntry } from '@/lib/chat-format';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useSession } from 'next-auth/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { uploadFile } from '@/app/actions/upload';
 import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
+import RichComposer, { type RichComposerHandle } from '@/components/chat/RichComposer';
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '🙏'];
 
 interface Message {
     _id: string;
     content: string;
     sender: string;
     createdAt: string;
-    readBy: string[];
+    readBy: (string | ReadEntry)[];
     attachments?: string[];
     edited?: boolean;
+    replyTo?: string | null;
+    reactions?: { emoji: string; users: string[] }[];
+    mentions?: string[];
+    deletedAt?: string | null;
 }
 
 interface Conversation {
@@ -56,10 +66,6 @@ function isEmojiOnly(text: string): boolean {
     const t = text.trim();
     return t.length > 0 && EMOJI_ONLY_RE.test(t) && t.length <= 12;
 }
-
-// Word-style colour palettes for the composer toolbar
-const TEXT_SWATCHES = ['#111827', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777'];
-const HIGHLIGHT_SWATCHES = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e9d5ff', '#fecaca', '#d9f99d'];
 
 // Only allow a safe subset of colour values in [fg=…] / [bg=…] tags — hex, rgb(), or a
 // short word list — so a message can never inject arbitrary CSS.
@@ -121,6 +127,12 @@ function renderRich(text: string, keyBase = 0): React.ReactNode[] {
 }
 
 function FormattedMessage({ content, isMe }: { content: string; isMe: boolean }) {
+    if (isHtmlContent(content)) {
+        return (
+            <span className="chat-html leading-relaxed [&_p]:m-0"
+                dangerouslySetInnerHTML={{ __html: sanitizeChatHtml(content) }} />
+        );
+    }
     const lines = content.split('\n');
     return (
         <>
@@ -151,31 +163,6 @@ function ChatAvatar({ name, isGroup, size = 'md', image }: { name: string; isGro
     );
 }
 
-// ─── Colour swatch popover ─────────────────────────────────────────────────────
-function ColorSwatches({ swatches, label, onPick, onClose }: {
-    swatches: string[]; label: string; onPick: (c: string) => void; onClose: () => void;
-}) {
-    return (
-        <div className="absolute bottom-9 left-0 z-50 bg-popover border border-border rounded-xl shadow-xl p-2.5 w-[168px]"
-            onMouseDown={e => e.preventDefault()}>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{label}</p>
-            <div className="grid grid-cols-5 gap-1.5">
-                {swatches.map(c => (
-                    <button key={c} type="button" onClick={() => onPick(c)}
-                        className="w-6 h-6 rounded-md border border-black/10 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: c }} title={c} />
-                ))}
-                <label className="w-6 h-6 rounded-md border border-dashed border-muted-foreground/40 flex items-center justify-center cursor-pointer hover:bg-muted"
-                    title="Custom colour">
-                    <span className="text-[9px] font-bold text-muted-foreground">+</span>
-                    <input type="color" className="sr-only" onChange={e => onPick(e.target.value)} />
-                </label>
-            </div>
-            <button type="button" onClick={onClose} className="mt-2 w-full text-[10px] text-muted-foreground hover:text-foreground">Close</button>
-        </div>
-    );
-}
-
 export default function ChatInterface() {
     const { data: session } = useSession();
     const userId = session?.user?.id as string | undefined;
@@ -184,7 +171,6 @@ export default function ChatInterface() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConvId, setActiveConvId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [draft, setDraft] = useState('');
     const [showEmoji, setShowEmoji] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [pendingAttachments, setPendingAttachments] = useState<{ url: string; name: string; type: string }[]>([]);
@@ -200,7 +186,6 @@ export default function ChatInterface() {
     const [groupSelected, setGroupSelected] = useState<string[]>([]);
     const [dialogSearch, setDialogSearch] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [colorMenu, setColorMenu] = useState<'fg' | 'bg' | null>(null);
 
     // Tracks the newest message id we've already seen per conversation, so the poller can
     // detect a genuinely new *incoming* message and fire the notification sound.
@@ -209,7 +194,7 @@ export default function ChatInterface() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const emojiRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const composerRef = useRef<RichComposerHandle>(null);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -299,90 +284,13 @@ export default function ChatInterface() {
     };
 
     // ── Edit message ──────────────────────────────────────────────────────────
+    const [editingContent, setEditingContent] = useState('');
     const startEdit = (msg: Message) => {
         setEditingId(msg._id);
-        setDraft(msg.content);
-        requestAnimationFrame(() => inputRef.current?.focus());
+        setEditingContent(msg.content);
+        setReplyTo(null);
     };
-    const cancelEdit = () => { setEditingId(null); setDraft(''); };
-
-    // ── Send message ──────────────────────────────────────────────────────────
-    const handleSend = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        // Edit mode: update the existing message instead of sending a new one
-        if (editingId) {
-            const newContent = draft.trim();
-            if (!newContent) { cancelEdit(); return; }
-            const id = editingId;
-            setMessages(prev => prev.map(m => m._id === id ? { ...m, content: newContent, edited: true } : m));
-            setEditingId(null);
-            setDraft('');
-            const res = await editMessage(id, newContent);
-            if (!res.success) { toast.error('Failed to edit message'); if (activeConvId) fetchMessages(activeConvId); }
-            return;
-        }
-
-        if (!activeConvId || (!draft.trim() && pendingAttachments.length === 0)) return;
-        setShowEmoji(false);
-
-        const tempId = `temp-${Date.now()}`;
-        const tempMsg: Message = {
-            _id: tempId,
-            content: draft,
-            sender: userId || '',
-            createdAt: new Date().toISOString(),
-            readBy: [],
-            attachments: pendingAttachments.map(a => a.url),
-        };
-        setMessages(prev => [...prev, tempMsg]);
-        setDraft('');
-        setPendingAttachments([]);
-        scrollToBottom();
-        setIsSending(true);
-
-        const res = await sendMessage(activeConvId, tempMsg.content, tempMsg.attachments);
-        setIsSending(false);
-        if (res.success) {
-            setMessages(prev => prev.map(m => m._id === tempId ? res.data : m));
-            fetchConversations();
-        } else {
-            toast.error('Failed to send message');
-            setMessages(prev => prev.filter(m => m._id !== tempId));
-        }
-    };
-
-    // ── Text formatting: wrap selection in markers ────────────────────────────
-    const handleFormat = (open: string, close?: string) => {
-        const el = inputRef.current;
-        if (!el) return;
-        const cm = close || open;
-        const start = el.selectionStart ?? draft.length;
-        const end = el.selectionEnd ?? draft.length;
-        let newVal: string;
-        let cursorStart: number;
-        if (start === end) {
-            newVal = draft.slice(0, start) + open + cm + draft.slice(end);
-            cursorStart = start + open.length;
-        } else {
-            newVal = draft.slice(0, start) + open + draft.slice(start, end) + cm + draft.slice(end);
-            cursorStart = start + open.length;
-        }
-        setDraft(newVal);
-        requestAnimationFrame(() => {
-            el.setSelectionRange(cursorStart, start === end ? cursorStart : end + open.length);
-            el.focus();
-            // Re-trigger auto-resize
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-        });
-    };
-
-    // Wrap the current selection in a [fg=…] text-colour or [bg=…] highlight tag
-    const applyColor = (kind: 'fg' | 'bg', color: string) => {
-        handleFormat(`[${kind}=${color}]`, `[/${kind}]`);
-        setColorMenu(null);
-    };
+    const cancelEdit = () => { setEditingId(null); setEditingContent(''); };
 
     // ── Emoji picker close on outside click ───────────────────────────────────
     useEffect(() => {
@@ -394,8 +302,7 @@ export default function ChatInterface() {
     }, [showEmoji]);
 
     const handleEmojiClick = (emojiData: any) => {
-        setDraft(prev => prev + emojiData.emoji);
-        inputRef.current?.focus();
+        composerRef.current?.insertText(emojiData.emoji);
     };
 
     // ── File upload ───────────────────────────────────────────────────────────
@@ -492,11 +399,132 @@ export default function ChatInterface() {
         return acc;
     }, []);
 
-    // ── Read status icon ──────────────────────────────────────────────────────
+    // ── Group members for @mention suggestions ─────────────────────────────────
+    const groupMembers = (activeConversation?.participants || [])
+        .filter(p => p !== userId)
+        .map(p => ({ id: p, name: userById(p)?.name || 'Unknown' }));
+
+    // ── Read receipts ───────────────────────────────────────────────────────────
+    // "Read by everyone" = every other participant of the conversation has a readBy entry.
+    const readByEveryone = useCallback((msg: Message) => {
+        if (!activeConversation) return false;
+        const readers = new Set(normalizeReadBy(msg.readBy).map(e => e.user));
+        const others = activeConversation.participants.filter(p => p !== msg.sender);
+        return others.length > 0 && others.every(p => readers.has(p));
+    }, [activeConversation]);
+
     const ReadIcon = ({ msg }: { msg: Message }) => {
         if (msg._id.startsWith('temp-')) return <Check className="w-3 h-3 text-white/50 inline" />;
-        if (msg.readBy && msg.readBy.some(id => id !== userId)) return <CheckCheck className="w-3 h-3 text-sky-300 inline" />;
+        if (readByEveryone(msg)) return <CheckCheck className="w-3 h-3 text-sky-500 inline" />;
+        const entries = normalizeReadBy(msg.readBy);
+        if (entries.some(e => e.user !== userId)) return <CheckCheck className="w-3 h-3 text-white/60 inline" />;
         return <Check className="w-3 h-3 text-white/60 inline" />;
+    };
+
+    // ── Message info popover (per-reader read times) ────────────────────────────
+    const [msgInfoId, setMsgInfoId] = useState<string | null>(null);
+    const MessageInfo = ({ msg }: { msg: Message }) => {
+        const entries = normalizeReadBy(msg.readBy).filter(e => e.user !== msg.sender);
+        return (
+            <div className="absolute bottom-full right-0 mb-1 z-50 bg-popover border border-border rounded-xl shadow-xl p-2.5 w-52"
+                onMouseDown={e => e.stopPropagation()}>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Read by</p>
+                {entries.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Not read yet</p>
+                ) : (
+                    <div className="space-y-1">
+                        {entries.map(e => (
+                            <div key={e.user} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="font-medium text-foreground truncate">{userById(e.user)?.name || 'Unknown'}</span>
+                                <span className="text-muted-foreground shrink-0">
+                                    {e.at ? format(e.at, 'd MMM, h:mm a') : 'read (time unknown)'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // ── Reactions ────────────────────────────────────────────────────────────────
+    const handleToggleReaction = async (msgId: string, emoji: string) => {
+        if (!userId) return;
+        setMessages(prev => prev.map(m => {
+            if (m._id !== msgId) return m;
+            const reactions = m.reactions ? [...m.reactions] : [];
+            const idx = reactions.findIndex(r => r.emoji === emoji);
+            if (idx >= 0) {
+                const users = reactions[idx].users.includes(userId)
+                    ? reactions[idx].users.filter(u => u !== userId)
+                    : [...reactions[idx].users, userId];
+                if (users.length === 0) reactions.splice(idx, 1);
+                else reactions[idx] = { ...reactions[idx], users };
+            } else {
+                reactions.push({ emoji, users: [userId] });
+            }
+            return { ...m, reactions };
+        }));
+        const res = await toggleReaction(msgId, emoji);
+        if (!res.success && activeConvId) fetchMessages(activeConvId);
+    };
+
+    // ── Reply ────────────────────────────────────────────────────────────────────
+    const [replyTo, setReplyTo] = useState<Message | null>(null);
+    const startReply = (msg: Message) => setReplyTo(msg);
+    const scrollToMessage = (id: string) => {
+        document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    // ── Delete for everyone ─────────────────────────────────────────────────────
+    const handleDeleteMessage = async (msg: Message) => {
+        if (!confirm('Delete this message for everyone?')) return;
+        setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, deletedAt: new Date().toISOString(), content: '', attachments: [] } : m));
+        const res = await deleteMessageForEveryone(msg._id);
+        if (!res.success) { toast.error('Failed to delete message'); if (activeConvId) fetchMessages(activeConvId); }
+    };
+
+    // ── Send via the rich composer ──────────────────────────────────────────────
+    const handleRichSend = async (html: string, mentions: string[]) => {
+        if (!activeConvId) return;
+
+        if (editingId) {
+            const id = editingId;
+            setMessages(prev => prev.map(m => m._id === id ? { ...m, content: html, edited: true } : m));
+            setEditingId(null);
+            const res = await editMessage(id, html);
+            if (!res.success) { toast.error('Failed to edit message'); fetchMessages(activeConvId); }
+            return;
+        }
+
+        const tempId = `temp-${Date.now()}`;
+        const tempMsg: Message = {
+            _id: tempId,
+            content: html,
+            sender: userId || '',
+            createdAt: new Date().toISOString(),
+            readBy: [],
+            attachments: pendingAttachments.map(a => a.url),
+            replyTo: replyTo?._id || null,
+            mentions,
+        };
+        setMessages(prev => [...prev, tempMsg]);
+        setPendingAttachments([]);
+        const currentReplyTo = replyTo?._id;
+        setReplyTo(null);
+        scrollToBottom();
+        setIsSending(true);
+
+        const res = await sendMessage(activeConvId, html, tempMsg.attachments, { replyTo: currentReplyTo, mentions });
+        setIsSending(false);
+        if (res.success) {
+            setMessages(prev => prev.map(m => m._id === tempId ? res.data : m));
+            fetchConversations();
+            if (mentions.length > 0) toast.success('Mentions sent');
+        } else {
+            toast.error('Failed to send message');
+            setMessages(prev => prev.filter(m => m._id !== tempId));
+        }
     };
 
     return (
@@ -661,23 +689,26 @@ export default function ChatInterface() {
 
                                         {group.msgs.map((msg, i) => {
                                             const isMe = msg.sender === userId;
+                                            const isDeleted = !!msg.deletedAt;
                                             const prevMsg = group.msgs[i - 1];
                                             const sameAsPrev = prevMsg?.sender === msg.sender;
-                                            const isGroup = activeConversation.type === 'Group';
-                                            const emojiOnly = msg.content ? isEmojiOnly(msg.content) : false;
+                                            const emojiOnly = msg.content && !isDeleted ? isEmojiOnly(msg.content) : false;
                                             const senderName = getSenderName(msg.sender);
                                             const senderImg = getSenderImage(msg.sender);
+                                            const quoted = msg.replyTo ? messages.find(m => m._id === msg.replyTo) : undefined;
+                                            const canEditOrDelete = !msg._id.startsWith('temp-') && !isDeleted;
 
                                             return (
                                                 <motion.div
                                                     key={msg._id}
+                                                    id={`msg-${msg._id}`}
                                                     initial={{ opacity: 0, y: 5, scale: 0.97 }}
                                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                                     transition={{ duration: 0.13, ease: [0.22, 1, 0.36, 1] }}
                                                     className={cn("flex items-end mb-0.5 gap-1.5", isMe ? "justify-end" : "justify-start", sameAsPrev ? "mt-0.5" : "mt-3")}
                                                 >
-                                                    {/* Incoming avatar — group only */}
-                                                    {!isMe && isGroup && (
+                                                    {/* Incoming avatar — every non-own message */}
+                                                    {!isMe && (
                                                         <div className="w-7 shrink-0 self-end mb-0.5">
                                                             {!sameAsPrev
                                                                 ? <ChatAvatar name={senderName} size="sm" image={senderImg} />
@@ -686,8 +717,8 @@ export default function ChatInterface() {
                                                     )}
 
                                                     <div className="flex flex-col" style={{ alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '72%' }}>
-                                                        {/* Sender name (group, first in run) */}
-                                                        {!isMe && isGroup && !sameAsPrev && (
+                                                        {/* Sender name (first message in a run) */}
+                                                        {!isMe && !sameAsPrev && (
                                                             <span className="text-[11px] font-semibold text-primary/80 mb-0.5 px-1">{senderName}</span>
                                                         )}
 
@@ -703,48 +734,117 @@ export default function ChatInterface() {
                                                                     sameAsPrev && (isMe ? "rounded-tr-2xl" : "rounded-tl-2xl")
                                                                 )
                                                         )}>
-                                                            {/* Edit affordance — own text messages only */}
-                                                            {isMe && msg.content && !emojiOnly && !msg._id.startsWith('temp-') && (
-                                                                <button
-                                                                    onClick={() => startEdit(msg)}
-                                                                    title="Edit message"
-                                                                    className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-primary opacity-0 group-hover/msg:opacity-100 transition-opacity"
-                                                                >
-                                                                    <Pencil className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            )}
-                                                            {/* Attachments */}
-                                                            {msg.attachments && msg.attachments.length > 0 && (
-                                                                <div className="flex flex-col gap-1.5 mb-1.5">
-                                                                    {msg.attachments.map((url, idx) => (
-                                                                        isImage(url)
-                                                                            ? <img key={idx} src={url} alt="Attachment" className="rounded-lg max-h-52 object-contain bg-black/5" />
-                                                                            : <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
-                                                                                className="flex items-center gap-2 text-[13px] bg-black/5 rounded-lg p-2 hover:bg-black/10">
-                                                                                <Paperclip className="w-3.5 h-3.5" /> View attachment
-                                                                            </a>
-                                                                    ))}
+                                                            {/* Hover toolbar: reply, edit (own), delete (own) */}
+                                                            {!isDeleted && (
+                                                                <div className={cn(
+                                                                    "absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity bg-white rounded-full shadow-sm border border-border px-0.5",
+                                                                    isMe ? "-left-[4.7rem]" : "-right-[4.7rem]"
+                                                                )}>
+                                                                    <button onClick={() => startReply(msg)} title="Reply"
+                                                                        className="p-1.5 rounded-full text-gray-400 hover:text-primary transition-colors">
+                                                                        <Reply className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                    {isMe && canEditOrDelete && msg.content && !emojiOnly && (
+                                                                        <button onClick={() => startEdit(msg)} title="Edit message"
+                                                                            className="p-1.5 rounded-full text-gray-400 hover:text-primary transition-colors">
+                                                                            <Pencil className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    )}
+                                                                    {isMe && canEditOrDelete && (
+                                                                        <button onClick={() => handleDeleteMessage(msg)} title="Delete for everyone"
+                                                                            className="p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors">
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             )}
 
-                                                            {/* Content */}
-                                                            {msg.content && (
-                                                                emojiOnly
-                                                                    ? <span className="text-[42px] leading-none block select-none">{msg.content}</span>
-                                                                    : <FormattedMessage content={msg.content} isMe={isMe} />
-                                                            )}
+                                                            {isDeleted ? (
+                                                                <span className="italic text-gray-400 text-xs flex items-center gap-1.5">
+                                                                    <Trash2 className="w-3 h-3" /> message deleted
+                                                                </span>
+                                                            ) : (
+                                                                <>
+                                                                    {/* Quoted reply preview */}
+                                                                    {quoted && (
+                                                                        <button onClick={() => scrollToMessage(quoted._id)}
+                                                                            className="block w-full text-left mb-1.5 pl-2 border-l-2 border-primary/50 bg-black/[0.03] rounded-r px-2 py-1">
+                                                                            <p className="text-[10px] font-semibold text-primary/80">{getSenderName(quoted.sender)}</p>
+                                                                            <p className="text-[11px] text-gray-500 truncate">
+                                                                                {quoted.deletedAt ? 'message deleted' : (quoted.content || '').replace(/<[^>]+>/g, '') || 'Attachment'}
+                                                                            </p>
+                                                                        </button>
+                                                                    )}
 
-                                                            {/* Timestamp + read receipt */}
-                                                            {!emojiOnly && (
-                                                                <div className={cn("flex items-center justify-end gap-0.5 mt-1", msg.content ? "pl-8" : "")}>
-                                                                    {msg.edited && <span className="text-[10px] text-gray-400 italic mr-0.5">edited</span>}
-                                                                    <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                                                                        {format(new Date(msg.createdAt), 'HH:mm')}
-                                                                    </span>
-                                                                    {isMe && <ReadIcon msg={msg} />}
-                                                                </div>
+                                                                    {/* Attachments */}
+                                                                    {msg.attachments && msg.attachments.length > 0 && (
+                                                                        <div className="flex flex-col gap-1.5 mb-1.5">
+                                                                            {msg.attachments.map((url, idx) => (
+                                                                                isImage(url)
+                                                                                    ? <img key={idx} src={url} alt="Attachment" className="rounded-lg max-h-52 object-contain bg-black/5" />
+                                                                                    : <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
+                                                                                        className="flex items-center gap-2 text-[13px] bg-black/5 rounded-lg p-2 hover:bg-black/10">
+                                                                                        <Paperclip className="w-3.5 h-3.5" /> View attachment
+                                                                                    </a>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Content */}
+                                                                    {msg.content && (
+                                                                        emojiOnly
+                                                                            ? <span className="text-[42px] leading-none block select-none">{msg.content}</span>
+                                                                            : <FormattedMessage content={msg.content} isMe={isMe} />
+                                                                    )}
+
+                                                                    {/* Timestamp + read receipt */}
+                                                                    {!emojiOnly && (
+                                                                        <div className={cn("relative flex items-center justify-end gap-0.5 mt-1", msg.content ? "pl-8" : "")}>
+                                                                            {msg.edited && <span className="text-[10px] text-gray-400 italic mr-0.5">edited</span>}
+                                                                            <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                                                                {format(new Date(msg.createdAt), 'HH:mm')}
+                                                                            </span>
+                                                                            {isMe && (
+                                                                                <button onClick={() => setMsgInfoId(id => id === msg._id ? null : msg._id)} className="leading-none">
+                                                                                    <ReadIcon msg={msg} />
+                                                                                </button>
+                                                                            )}
+                                                                            {isMe && msgInfoId === msg._id && <MessageInfo msg={msg} />}
+                                                                        </div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
+
+                                                        {/* Reaction cluster */}
+                                                        {!isDeleted && msg.reactions && msg.reactions.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1 mt-1 px-1">
+                                                                {msg.reactions.map(r => (
+                                                                    <button key={r.emoji} onClick={() => handleToggleReaction(msg._id, r.emoji)}
+                                                                        className={cn(
+                                                                            "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border shadow-sm transition-colors",
+                                                                            userId && r.users.includes(userId)
+                                                                                ? "bg-primary/10 border-primary/30"
+                                                                                : "bg-white border-border hover:bg-muted"
+                                                                        )}>
+                                                                        <span>{r.emoji}</span>
+                                                                        <span className="font-semibold text-gray-500">{r.users.length}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Quick-react bar (own + incoming) */}
+                                                        {!isDeleted && (
+                                                            <div className="flex items-center gap-0.5 mt-0.5 px-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                                {QUICK_REACTIONS.map(e => (
+                                                                    <button key={e} onClick={() => handleToggleReaction(msg._id, e)}
+                                                                        className="text-xs hover:scale-125 transition-transform">
+                                                                        {e}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
 
                                                         {/* Emoji-only timestamp below */}
                                                         {emojiOnly && (
@@ -773,6 +873,21 @@ export default function ChatInterface() {
                                     <button type="button" onClick={cancelEdit} className="ml-auto text-amber-600 hover:text-amber-900 font-semibold">Cancel</button>
                                 </div>
                             )}
+                            {/* Reply banner */}
+                            {replyTo && !editingId && (
+                                <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-xs">
+                                    <CornerUpLeft className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-primary">{getSenderName(replyTo.sender)}</p>
+                                        <p className="text-muted-foreground truncate max-w-[220px]">
+                                            {replyTo.deletedAt ? 'message deleted' : replyTo.content.replace(/<[^>]+>/g, '') || 'Attachment'}
+                                        </p>
+                                    </div>
+                                    <button type="button" onClick={() => setReplyTo(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            )}
                             {/* Pending attachments */}
                             {pendingAttachments.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-2">
@@ -794,131 +909,56 @@ export default function ChatInterface() {
                                 </div>
                             )}
 
-                            <form onSubmit={handleSend} className="flex flex-col gap-1.5">
-                                {/* Formatting toolbar */}
-                                <div className="flex items-center gap-0.5 px-1">
-                                    {[
-                                        { icon: Bold, title: 'Bold (*)', open: '*' },
-                                        { icon: Italic, title: 'Italic (_)', open: '_' },
-                                        { icon: Strikethrough, title: 'Strike (~)', open: '~' },
-                                        { icon: Code, title: 'Code (`)', open: '`' },
-                                    ].map(({ icon: Icon, title, open }) => (
-                                        <button key={open} type="button" title={title}
-                                            onMouseDown={e => { e.preventDefault(); handleFormat(open); }}
-                                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/8 transition-colors">
-                                            <Icon className="w-3.5 h-3.5" />
-                                        </button>
-                                    ))}
-                                    <button type="button" title="Quote (> )" onMouseDown={e => { e.preventDefault(); handleFormat('> ', ''); }}
-                                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/8 transition-colors text-[11px] font-bold leading-none">
-                                        "
+                            <div className="flex items-end gap-2">
+                                {/* Emoji */}
+                                <div ref={emojiRef} className="relative shrink-0">
+                                    <button type="button" onClick={() => setShowEmoji(v => !v)}
+                                        className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors mb-1">
+                                        <Smile className="w-5 h-5" />
                                     </button>
-
-                                    <span className="mx-1 text-border">|</span>
-
-                                    {/* Text colour */}
-                                    <div className="relative">
-                                        <button type="button" title="Text colour"
-                                            onMouseDown={e => { e.preventDefault(); setColorMenu(m => m === 'fg' ? null : 'fg'); }}
-                                            className={cn("p-1.5 rounded-md transition-colors", colorMenu === 'fg' ? 'bg-black/10 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/8')}>
-                                            <Baseline className="w-3.5 h-3.5" />
-                                        </button>
-                                        {colorMenu === 'fg' && (
-                                            <ColorSwatches swatches={TEXT_SWATCHES} label="Text colour"
-                                                onPick={c => applyColor('fg', c)} onClose={() => setColorMenu(null)} />
+                                    <AnimatePresence>
+                                        {showEmoji && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                                transition={{ duration: 0.14 }}
+                                                className="absolute bottom-12 left-0 z-50"
+                                            >
+                                                <EmojiPicker
+                                                    onEmojiClick={handleEmojiClick}
+                                                    theme={Theme.LIGHT}
+                                                    emojiStyle={EmojiStyle.NATIVE}
+                                                    height={380}
+                                                    width={320}
+                                                    previewConfig={{ showPreview: false }}
+                                                />
+                                            </motion.div>
                                         )}
-                                    </div>
-
-                                    {/* Highlight */}
-                                    <div className="relative">
-                                        <button type="button" title="Highlight"
-                                            onMouseDown={e => { e.preventDefault(); setColorMenu(m => m === 'bg' ? null : 'bg'); }}
-                                            className={cn("p-1.5 rounded-md transition-colors", colorMenu === 'bg' ? 'bg-black/10 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/8')}>
-                                            <Highlighter className="w-3.5 h-3.5" />
-                                        </button>
-                                        {colorMenu === 'bg' && (
-                                            <ColorSwatches swatches={HIGHLIGHT_SWATCHES} label="Highlight"
-                                                onPick={c => applyColor('bg', c)} onClose={() => setColorMenu(null)} />
-                                        )}
-                                    </div>
-
-                                    <span className="ml-auto text-[10px] text-muted-foreground/50 pr-1 hidden sm:block">Shift+Enter for newline</span>
+                                    </AnimatePresence>
                                 </div>
 
-                                {/* Input row */}
-                                <div className="flex items-end gap-2">
-                                    {/* Emoji */}
-                                    <div ref={emojiRef} className="relative shrink-0">
-                                        <button type="button" onClick={() => setShowEmoji(v => !v)}
-                                            className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors">
-                                            <Smile className="w-5 h-5" />
-                                        </button>
-                                        <AnimatePresence>
-                                            {showEmoji && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                                                    transition={{ duration: 0.14 }}
-                                                    className="absolute bottom-12 left-0 z-50"
-                                                >
-                                                    <EmojiPicker
-                                                        onEmojiClick={handleEmojiClick}
-                                                        theme={Theme.LIGHT}
-                                                        emojiStyle={EmojiStyle.NATIVE}
-                                                        height={380}
-                                                        width={320}
-                                                        previewConfig={{ showPreview: false }}
-                                                    />
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+                                {/* File attach */}
+                                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}
+                                    className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors shrink-0 self-end mb-1.5">
+                                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+                                </button>
+                                <input ref={fileInputRef} type="file" className="hidden" multiple
+                                    accept="image/*,application/pdf,.doc,.docx" onChange={handleFileSelect} />
 
-                                    {/* File attach */}
-                                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}
-                                        className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-black/5 transition-colors shrink-0 self-end mb-0.5">
-                                        {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
-                                    </button>
-                                    <input ref={fileInputRef} type="file" className="hidden" multiple
-                                        accept="image/*,application/pdf,.doc,.docx" onChange={handleFileSelect} />
-
-                                    {/* Textarea (auto-resize, max 3 rows) */}
-                                    <textarea
-                                        ref={inputRef}
-                                        rows={1}
-                                        value={draft}
-                                        onChange={e => {
-                                            setDraft(e.target.value);
-                                            e.target.style.height = 'auto';
-                                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                                        }}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleSend(e as any);
-                                            }
-                                        }}
-                                        placeholder="Type a message… (*bold* _italic_ ~strike~ `code`)"
-                                        className="flex-1 bg-white rounded-xl px-4 py-2.5 text-[14px] outline-none border border-border focus:ring-2 focus:ring-primary/20 shadow-sm resize-none overflow-hidden leading-relaxed"
-                                        style={{ minHeight: '42px', maxHeight: '120px' }}
+                                {/* Rich composer */}
+                                <div className="flex-1">
+                                    <RichComposer
+                                        key={editingId || 'new'}
+                                        ref={composerRef}
+                                        onSend={handleRichSend}
+                                        members={groupMembers}
+                                        initialContent={editingId ? editingContent : undefined}
+                                        placeholder="Type a message…"
+                                        disabled={isUploading || isSending}
                                     />
-
-                                    {/* Send */}
-                                    <button
-                                        type="submit"
-                                        disabled={(!draft.trim() && pendingAttachments.length === 0) || isUploading || isSending}
-                                        className={cn(
-                                            "w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all self-end",
-                                            draft.trim() || pendingAttachments.length > 0
-                                                ? "bg-primary text-white shadow-md hover:bg-primary/90"
-                                                : "bg-muted text-muted-foreground cursor-not-allowed"
-                                        )}
-                                    >
-                                        {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                    </button>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                     </>
                 ) : (

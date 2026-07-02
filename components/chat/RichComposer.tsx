@@ -8,7 +8,7 @@ import { Color } from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
 import Mention from '@tiptap/extension-mention';
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Bold, Italic, Underline as UnderlineIcon, Strikethrough, Code, Baseline, Highlighter, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import MentionList, { MentionListHandle, MentionItem } from './MentionList';
@@ -16,18 +16,27 @@ import MentionList, { MentionListHandle, MentionItem } from './MentionList';
 const TEXT_SWATCHES = ['#111827', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777'];
 const HIGHLIGHT_SWATCHES = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e9d5ff', '#fecaca', '#d9f99d'];
 
+export interface RichComposerHandle {
+    insertText: (text: string) => void;
+    focus: () => void;
+}
+
 interface RichComposerProps {
     onSend: (html: string, mentions: string[]) => void;
     members?: MentionItem[];
     placeholder?: string;
     disabled?: boolean;
+    initialContent?: string;
 }
 
-export default function RichComposer({ onSend, members = [], placeholder = 'Type a message…', disabled }: RichComposerProps) {
+const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(function RichComposer(
+    { onSend, members = [], placeholder = 'Type a message…', disabled, initialContent }, ref
+) {
     const [swatchMenu, setSwatchMenu] = useState<'text' | 'highlight' | null>(null);
 
     const editor = useEditor({
         immediatelyRender: false,
+        content: initialContent || '',
         extensions: [
             StarterKit.configure({ heading: false, blockquote: false, bulletList: false, orderedList: false, horizontalRule: false }),
             Underline,
@@ -96,6 +105,11 @@ export default function RichComposer({ onSend, members = [], placeholder = 'Type
         editor.commands.clearContent();
     }
 
+    useImperativeHandle(ref, () => ({
+        insertText: (text: string) => { editor?.chain().focus().insertContent(text).run(); },
+        focus: () => { editor?.chain().focus().run(); },
+    }), [editor]);
+
     if (!editor) return null;
 
     return (
@@ -152,7 +166,9 @@ export default function RichComposer({ onSend, members = [], placeholder = 'Type
             </div>
         </div>
     );
-}
+});
+
+export default RichComposer;
 
 function ToolbarButton({ active, onClick, children, title }: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) {
     return (
