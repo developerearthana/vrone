@@ -27,6 +27,7 @@ import {
 import { getEmployees } from '@/app/actions/employee';
 import { getHolidays, seedHolidays, setHolidayWorkingDay } from '@/app/actions/activity/holidays';
 import { holidayTheme } from '@/lib/holiday-themes';
+import { dayCellTreatment } from '@/lib/calendar-day-style';
 import type { CompanyEventType, MeetingMode } from '@/models/CompanyEvent';
 
 // ── Color configs ────────────────────────────────────────────
@@ -615,7 +616,6 @@ export default function UnifiedCalendarPage() {
                                         const { personal, company } = eventsForDay(day);
                                         const isCurrentMonth = isSameMonth(day, currentDate);
                                         const todayDay = isToday(day);
-                                        const isSun = day.getDay() === 0;
                                         const limit = view === 'week' ? 10 : 3;
                                         const overflow = Math.max(0, (personal.length + company.length) - limit);
                                         const shownPersonal = personal.slice(0, limit);
@@ -625,6 +625,7 @@ export default function UnifiedCalendarPage() {
                                         const holiday = holidayForDay(day);
                                         const activeHoliday = holiday && !holiday.isWorkingDay ? holiday : null;
                                         const theme = activeHoliday ? holidayTheme(activeHoliday.theme) : null;
+                                        const treatment = dayCellTreatment(day, holiday ?? null);
 
                                         return (
                                             <div
@@ -634,16 +635,13 @@ export default function UnifiedCalendarPage() {
                                                     "cursor-pointer transition-colors relative",
                                                     view === 'week' ? 'min-h-[280px]' : 'min-h-[100px]',
                                                     !isCurrentMonth && view === 'month' ? 'bg-muted/20' : '',
-                                                    // Holiday theme takes precedence over the default cell tints
-                                                    activeHoliday && theme ? theme.cell :
+                                                    treatment.kind !== 'normal' ? treatment.cellClass :
                                                         todayDay ? 'bg-primary/[0.03]' : 'hover:bg-muted/20',
-                                                    activeHoliday && theme?.festive ? 'holiday-festive' : '',
-                                                    isSun && isCurrentMonth && !todayDay && !activeHoliday ? 'bg-red-50/20' : '',
                                                 )}
                                             >
                                                 <div className="flex justify-between items-center p-1.5 pb-0.5">
                                                     {activeHoliday
-                                                        ? <span className="text-sm leading-none select-none" title={activeHoliday.name}>{theme?.emoji}</span>
+                                                        ? <span className="festival-emoji text-sm leading-none select-none" title={activeHoliday.name}>{theme?.emoji}</span>
                                                         : holiday?.isWorkingDay
                                                             ? <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-600/70">Working</span>
                                                             : <span />}
@@ -651,8 +649,7 @@ export default function UnifiedCalendarPage() {
                                                         "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
                                                         todayDay ? 'bg-primary text-white shadow-sm shadow-primary/30' :
                                                         !isCurrentMonth ? 'text-muted-foreground/40' :
-                                                        activeHoliday ? 'text-foreground' :
-                                                        isSun ? 'text-red-400' : 'text-foreground'
+                                                        treatment.dateNumClass
                                                     )}>
                                                         {format(day, 'd')}
                                                     </span>
@@ -665,7 +662,9 @@ export default function UnifiedCalendarPage() {
                                                                 onClick={e => { e.stopPropagation(); setDetailEvent({ ...holiday, _isHoliday: true }); }}
                                                                 className={cn(
                                                                     "w-full flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-bold leading-tight text-left",
-                                                                    activeHoliday && theme ? cn(theme.chip, 'shadow-sm') : 'bg-muted text-muted-foreground line-through decoration-1'
+                                                                    holiday.isWorkingDay ? 'bg-muted text-muted-foreground line-through decoration-1'
+                                                                        : treatment.ribbonClass ?? 'bg-red-500 text-white',
+                                                                    !holiday.isWorkingDay && 'shadow-sm'
                                                                 )}
                                                                 title={holiday.isWorkingDay ? `${holiday.name} (working day)` : holiday.name}
                                                             >
@@ -678,6 +677,11 @@ export default function UnifiedCalendarPage() {
                                                             <p className="text-[9px] text-muted-foreground pl-2 font-medium">+{overflow} more</p>
                                                         )}
                                                     </div>
+                                                )}
+                                                {treatment.caption && (isCurrentMonth || view === 'week') && (
+                                                    <span className="absolute bottom-0.5 left-0 right-0 text-center text-[7.5px] font-extrabold uppercase tracking-widest text-rose-400 pointer-events-none">
+                                                        {treatment.caption}
+                                                    </span>
                                                 )}
                                             </div>
                                         );
