@@ -163,7 +163,7 @@ function ChatAvatar({ name, isGroup, size = 'md', image }: { name: string; isGro
     );
 }
 
-export default function ChatInterface() {
+export default function ChatInterface({ mode = 'page' }: { mode?: 'page' | 'popup' }) {
     const { data: session } = useSession();
     const userId = session?.user?.id as string | undefined;
     const me = session?.user as { name?: string | null; image?: string | null } | undefined;
@@ -224,11 +224,27 @@ export default function ChatInterface() {
     }, [userId, userById]);
 
     // ── Fetch conversations ────────────────────────────────────────────────────
+    // Tracks each conversation's unread count so we can flash its row in the
+    // picker when a new message arrives for a conversation the user isn't in.
+    const prevUnreadRef = useRef<Record<string, number>>({});
+    const [flashConvId, setFlashConvId] = useState<string | null>(null);
     const fetchConversations = useCallback(async () => {
         if (!userId) return;
         const res = await getConversations();
-        if (res.success) setConversations(res.data);
-    }, [userId]);
+        if (res.success) {
+            const data: Conversation[] = res.data;
+            for (const conv of data) {
+                const unread = conv.unreadCounts?.[userId] || 0;
+                const prev = prevUnreadRef.current[conv._id];
+                if (prev !== undefined && unread > prev && conv._id !== activeConvId) {
+                    setFlashConvId(conv._id);
+                    setTimeout(() => setFlashConvId(id => id === conv._id ? null : id), 2000);
+                }
+                prevUnreadRef.current[conv._id] = unread;
+            }
+            setConversations(data);
+        }
+    }, [userId, activeConvId]);
 
     // ── Fetch messages for active conversation ────────────────────────────────
     const fetchMessages = useCallback(async (convId: string, scrollBehavior?: ScrollBehavior) => {
@@ -527,13 +543,12 @@ export default function ChatInterface() {
         }
     };
 
-    return (
-        <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {/* ── Sidebar ── */}
+    const sidebarPane = (
             <div className={cn(
-                "flex flex-col border-r border-border bg-muted/20 shrink-0 transition-all",
-                "w-full md:w-72 lg:w-80",
-                showMobileChat ? "hidden md:flex" : "flex"
+                "flex flex-col border-r border-border bg-muted/20 shrink-0 transition-all h-full",
+                mode === 'popup'
+                    ? "w-full"
+                    : cn("w-full md:w-72 lg:w-80", showMobileChat ? "hidden md:flex" : "flex")
             )}>
                 {/* Header */}
                 <div className="px-4 pt-4 pb-3 border-b border-border space-y-3">
@@ -596,7 +611,8 @@ export default function ChatInterface() {
                                 <div key={id} onClick={onClick}
                                     className={cn(
                                         "flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors group mx-1 rounded-xl",
-                                        activeConvId === id ? "bg-primary/10" : "hover:bg-muted/50"
+                                        activeConvId === id ? "bg-primary/10" : "hover:bg-muted/50",
+                                        flashConvId === id && "animate-pulse bg-primary/15"
                                     )}>
                                     <ChatAvatar name={name} isGroup={isGroup} size="md" image={img} />
                                     <div className="flex-1 min-w-0">
@@ -627,11 +643,12 @@ export default function ChatInterface() {
                     )}
                 </div>
             </div>
+    );
 
-            {/* ── Chat pane ── */}
+    const chatPane = (
             <div className={cn(
-                "flex-1 flex flex-col overflow-hidden min-w-0 bg-[#efeae2]",
-                showMobileChat ? "flex" : "hidden md:flex"
+                "flex-1 flex flex-col overflow-hidden min-w-0 bg-[#efeae2] h-full",
+                mode === 'popup' ? "flex w-full" : (showMobileChat ? "flex" : "hidden md:flex")
             )}
                 style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath d='M0 0h80v80H0z' fill='none'/%3E%3C/svg%3E\")" }}
             >
@@ -640,7 +657,7 @@ export default function ChatInterface() {
                         {/* Chat header */}
                         <div className="flex items-center justify-between px-4 py-2.5 bg-[#f0f2f5] border-b border-border shadow-sm shrink-0 z-10">
                             <div className="flex items-center gap-3">
-                                <button className="md:hidden p-1 -ml-1 text-muted-foreground" onClick={() => setShowMobileChat(false)}>
+                                <button className={cn(mode === 'popup' ? "" : "md:hidden", "p-1 -ml-1 text-muted-foreground")} onClick={() => setShowMobileChat(false)}>
                                     <ArrowLeft className="w-5 h-5" />
                                 </button>
                                 <ChatAvatar name={convName(activeConversation)} isGroup={activeConversation.type === 'Group'} size="md" image={convImage(activeConversation)} />
@@ -977,8 +994,9 @@ export default function ChatInterface() {
                     </div>
                 )}
             </div>
+    );
 
-            {/* ── New chat dialog ── */}
+    const newChatDialog = (
             <Dialog open={isNewChatOpen} onOpenChange={(open) => {
                 setIsNewChatOpen(open);
                 if (!open) { setNewChatTab('Direct'); setGroupName(''); setGroupSelected([]); setDialogSearch(''); }
@@ -1103,6 +1121,48 @@ export default function ChatInterface() {
                     )}
                 </DialogContent>
             </Dialog>
+    );
+
+    // ── Popup mode: single-pane step flow (picker <-> conversation) ────────────
+    if (mode === 'popup') {
+        return (
+            <div className="relative h-full w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <AnimatePresence initial={false} mode="popLayout">
+                    {!showMobileChat ? (
+                        <motion.div
+                            key="picker"
+                            className="absolute inset-0 flex flex-col"
+                            initial={{ x: -24, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: -24, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        >
+                            {sidebarPane}
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="conversation"
+                            className="absolute inset-0 flex flex-col"
+                            initial={{ x: 24, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: 24, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        >
+                            {chatPane}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                {newChatDialog}
+            </div>
+        );
+    }
+
+    // ── Page mode: classic two-pane layout (also handles narrow-viewport step flow) ──
+    return (
+        <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            {sidebarPane}
+            {chatPane}
+            {newChatDialog}
         </div>
     );
 }
