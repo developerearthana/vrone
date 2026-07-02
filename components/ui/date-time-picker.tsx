@@ -17,9 +17,11 @@ export function DateQuickPick({ value, onChange }: { value: string; onChange: (v
         start: startOfWeek(startOfMonth(month), { weekStartsOn: 1 }),
         end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }),
     });
+    const qd = quickDates();
+    const isCustomDate = value && !qd.some(q => q.value === value);
     return (
         <div className="flex items-center gap-1.5 flex-wrap">
-            {quickDates().map(q => (
+            {qd.map(q => (
                 <button key={q.label} type="button" onClick={() => onChange(q.value)}
                     className={cn("px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors",
                         value === q.value ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:text-foreground')}>
@@ -30,10 +32,9 @@ export function DateQuickPick({ value, onChange }: { value: string; onChange: (v
                 <PopoverTrigger asChild>
                     <button type="button" className={cn(
                         "px-2.5 py-1 rounded-full border text-[11px] font-semibold flex items-center gap-1 transition-colors",
-                        value && !quickDates().some(q => q.value === value)
-                            ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:text-foreground')}>
+                        isCustomDate ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:text-foreground')}>
                         <CalendarDays className="w-3 h-3" />
-                        {value && !quickDates().some(q => q.value === value) ? format(parseISO(value), 'd MMM yyyy') : 'Pick…'}
+                        {isCustomDate ? format(parseISO(value), 'd MMM yyyy') : 'Pick...'}
                     </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-3" align="start">
