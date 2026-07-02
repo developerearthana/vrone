@@ -6,21 +6,30 @@ import Message from '@/models/Message';
 import User from '@/models/User';
 import connectToDatabase from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { isHtmlContent, sanitizeChatHtml, normalizeReadBy } from '@/lib/chat-format';
 
-export async function sendMessage(conversationId: string, content: string, attachments: string[] = []) {
+export async function sendMessage(
+    conversationId: string,
+    content: string,
+    attachments: string[] = [],
+    opts?: { replyTo?: string; mentions?: string[] }
+) {
     try {
         await connectToDatabase();
         const session = await auth();
         if (!session?.user?.id) throw new Error('Unauthorized');
 
         const senderId = session.user.id;
+        const clean = isHtmlContent(content) ? sanitizeChatHtml(content) : content;
 
         const newMessage = new Message({
             conversationId,
             sender: senderId,
-            content,
+            content: clean,
             attachments,
-            readBy: [senderId]
+            readBy: [{ user: senderId, at: new Date() }],
+            replyTo: opts?.replyTo || null,
+            mentions: opts?.mentions || [],
         });
 
 
@@ -65,7 +74,7 @@ export async function editMessage(messageId: string, content: string) {
         // Only the original sender may edit their own message
         if (String(msg.sender) !== String(session.user.id)) throw new Error('You can only edit your own messages');
 
-        msg.content = content;
+        msg.content = isHtmlContent(content) ? sanitizeChatHtml(content) : content;
         msg.edited = true;
         msg.editedAt = new Date();
         await msg.save();
@@ -246,7 +255,7 @@ export async function markAsRead(conversationId: string) {
         if (!session?.user?.id) throw new Error('Unauthorized');
 
         const userId = session.user.id;
-        
+
         // Find the conversation
         const conv = await Conversation.findById(conversationId);
         if (conv && conv.unreadCounts) {
@@ -254,9 +263,83 @@ export async function markAsRead(conversationId: string) {
             await conv.save();
         }
 
+        // Timestamp each unread message as read by this user, lazily upgrading
+        // any legacy string readBy entries in the same write.
+        const msgs = await Message.find({ conversationId, deletedAt: null });
+        for (const m of msgs) {
+            const entries = normalizeReadBy(m.readBy as any[]);
+            const hasLegacyStrings = (m.readBy as any[]).some((r: any) => typeof r === 'string');
+            if (!entries.some(e => e.user === userId)) {
+                m.readBy = [...entries, { user: userId, at: new Date() }] as any;
+                m.markModified('readBy');
+                await m.save();
+            } else if (hasLegacyStrings) {
+                m.readBy = entries as any;
+                m.markModified('readBy');
+                await m.save();
+            }
+        }
+
         return { success: true };
     } catch (error: any) {
         console.error("Mark as read error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function toggleReaction(messageId: string, emoji: string) {
+    try {
+        await connectToDatabase();
+        const session = await auth();
+        if (!session?.user?.id) throw new Error('Unauthorized');
+        const userId = session.user.id;
+
+        const msg = await Message.findById(messageId);
+        if (!msg) throw new Error('Message not found');
+
+        const entry = msg.reactions.find((r: any) => r.emoji === emoji);
+        if (entry) {
+            if (entry.users.includes(userId)) {
+                entry.users = entry.users.filter((u: string) => u !== userId);
+                if (entry.users.length === 0) {
+                    msg.reactions = msg.reactions.filter((r: any) => r.emoji !== emoji);
+                }
+            } else {
+                entry.users.push(userId);
+            }
+        } else {
+            msg.reactions.push({ emoji, users: [userId] });
+        }
+        msg.markModified('reactions');
+        await msg.save();
+
+        return { success: true, data: JSON.parse(JSON.stringify(msg.reactions)) };
+    } catch (error: any) {
+        console.error('Toggle reaction error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteMessageForEveryone(messageId: string) {
+    try {
+        await connectToDatabase();
+        const session = await auth();
+        if (!session?.user?.id) throw new Error('Unauthorized');
+
+        const msg = await Message.findById(messageId);
+        if (!msg) throw new Error('Message not found');
+        if (String(msg.sender) !== String(session.user.id)) {
+            throw new Error('Only the sender can delete this message');
+        }
+
+        msg.deletedAt = new Date();
+        msg.content = '';
+        msg.attachments = [];
+        await msg.save();
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Delete message error:', error);
         return { success: false, error: error.message };
     }
 }
