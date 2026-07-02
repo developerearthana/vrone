@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Users } from 'lucide-react';
 import { getConversations, getUsersForChat } from '@/app/actions/activity/chat';
+import { toPreviewText } from '@/lib/chat-format';
 
 interface ChatNotif {
     id: string;
@@ -79,7 +80,7 @@ export default function ChatNotificationBubble() {
                         senderImage = other?.image;
                     }
 
-                    const preview = (conv.lastMessage as any)?.content || '📎 Attachment';
+                    const preview = toPreviewText((conv.lastMessage as any)?.content || '') || '📎 Attachment';
 
                     newNotifs.push({
                         id: `${conv._id}-${Date.now()}`,

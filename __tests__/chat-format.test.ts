@@ -1,5 +1,5 @@
 // __tests__/chat-format.test.ts
-import { isHtmlContent, sanitizeChatHtml, normalizeReadBy } from '@/lib/chat-format';
+import { isHtmlContent, sanitizeChatHtml, normalizeReadBy, toPreviewText } from '@/lib/chat-format';
 
 describe('chat-format', () => {
     it('detects HTML vs legacy marker content', () => {
@@ -51,6 +51,13 @@ describe('chat-format', () => {
 
     it('treats style property names case-insensitively', () => {
         expect(sanitizeChatHtml('<span style="COLOR: red">x</span>')).toContain('color: red');
+    });
+
+    it('toPreviewText strips HTML tags to a flat string for list previews', () => {
+        expect(toPreviewText('<p><strong><em>hi</em></strong></p>')).toBe('hi');
+        expect(toPreviewText('<p>line one</p><p>line two</p>')).toBe('line one line two');
+        expect(toPreviewText('*bold* legacy')).toBe('*bold* legacy');
+        expect(toPreviewText('')).toBe('');
     });
 
     it('normalizeReadBy upgrades legacy strings and keeps objects', () => {

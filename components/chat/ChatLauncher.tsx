@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Users, Minus, Maximize2, Minimize2 } from 'lucide-react';
 import { getConversations, getUsersForChat } from '@/app/actions/activity/chat';
 import { playChatPing } from '@/lib/chat-notify';
+import { toPreviewText } from '@/lib/chat-format';
 import ChatInterface from '@/components/activity/ChatInterface';
 
 interface ChatNotif {
@@ -72,7 +73,7 @@ export default function ChatLauncher() {
                         senderName = other?.name || 'Someone';
                         senderImage = other?.image;
                     }
-                    const preview = (conv.lastMessage as any)?.content || '📎 Attachment';
+                    const preview = toPreviewText((conv.lastMessage as any)?.content || '') || '📎 Attachment';
                     newNotifs.push({
                         id: `${conv._id}-${Date.now()}`,
                         senderName, senderImage, isGroup,

@@ -17,7 +17,7 @@ import {
     toggleReaction, deleteMessageForEveryone,
 } from '@/app/actions/activity/chat';
 import { playChatPing } from '@/lib/chat-notify';
-import { isHtmlContent, sanitizeChatHtml, normalizeReadBy, type ReadEntry } from '@/lib/chat-format';
+import { isHtmlContent, sanitizeChatHtml, normalizeReadBy, toPreviewText, type ReadEntry } from '@/lib/chat-format';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useSession } from 'next-auth/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -600,7 +600,7 @@ export default function ChatInterface({ mode = 'page' }: { mode?: 'page' | 'popu
                             const img = isConvTab ? convImage(item as Conversation) : item.image;
                             const subtitle = activeTab === 'Contacts'
                                 ? (item.jobTitle || item.role || item.email)
-                                : ((item.lastMessage as any)?.content || '');
+                                : toPreviewText((item.lastMessage as any)?.content || '');
                             const unread = isConvTab && userId ? (item.unreadCounts?.[userId] || 0) : 0;
                             const time = isConvTab && item.updatedAt
                                 ? format(new Date(item.updatedAt), isToday(new Date(item.updatedAt)) ? 'HH:mm' : 'dd MMM')

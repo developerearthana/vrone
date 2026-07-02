@@ -79,6 +79,20 @@ export function sanitizeChatHtml(html: string): string {
     return DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 }
 
+/**
+ * Strips rich-text HTML down to a flat string for list-preview contexts
+ * (conversation subtitles, notifications) where tags must not be visible.
+ * Legacy plain/marker-formatted content passes through untouched.
+ */
+export function toPreviewText(content: string): string {
+    if (!content || !isHtmlContent(content)) return content || '';
+    // Turn block/line boundaries into spaces before stripping tags, so
+    // adjacent paragraphs don't collapse into one run-on word.
+    const withBreaks = content.replace(/<\/(p|div|li|h[1-6])>|<br\s*\/?>/gi, ' ');
+    const text = DOMPurify.sanitize(withBreaks, { ALLOWED_TAGS: [] });
+    return text.replace(/\s+/g, ' ').trim();
+}
+
 export interface ReadEntry {
     user: string;
     at: Date | null;
