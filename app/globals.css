@@ -945,3 +945,20 @@ textarea:focus-visible {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-3px) scale(1.15); }
 }
+
+/* ── Chat rich composer (Tiptap) ──────────────────────────────────────── */
+.mention {
+    color: var(--primary);
+    background: color-mix(in oklab, var(--primary) 12%, transparent);
+    border-radius: 4px;
+    padding: 0 3px;
+    font-weight: 600;
+}
+.chat-composer-editor p { margin: 0; }
+.chat-composer-editor p.is-editor-empty:first-child::before {
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+}
