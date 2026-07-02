@@ -27,6 +27,9 @@ import {
 import { getEmployees } from '@/app/actions/employee';
 import { getHolidays, seedHolidays, setHolidayWorkingDay } from '@/app/actions/activity/holidays';
 import { holidayTheme } from '@/lib/holiday-themes';
+import { dayCellTreatment } from '@/lib/calendar-day-style';
+import { DateQuickPick, TimeSelect } from '@/components/ui/date-time-picker';
+import { applyDuration, DURATION_CHIPS } from '@/lib/datetime-quick';
 import type { CompanyEventType, MeetingMode } from '@/models/CompanyEvent';
 
 // ── Color configs ────────────────────────────────────────────
@@ -53,6 +56,7 @@ const COMPANY_COLORS: Record<string, { label: string; dot: string; bg: string; t
 };
 
 const MEETING_TYPES: CompanyEventType[] = ['Client Meeting', 'Vendor Meeting', 'Internal Meeting', 'Leadership Review'];
+const HOLIDAY_TYPES: CompanyEventType[] = ['National Holiday', 'State Holiday', 'Optional Holiday', 'Office Managed Leave'];
 
 const MEETING_ICONS: Record<string, React.ReactNode> = {
     'In Person':   <Building2 className="w-3.5 h-3.5" />,
@@ -104,6 +108,7 @@ export default function UnifiedCalendarPage() {
 
     const [pForm, setPForm] = useState(emptyPersonal());
     const [cForm, setCForm] = useState(emptyCompany());
+    const [pAllDay, setPAllDay] = useState(false);
     const [pSearch, setPSearch] = useState('');
 
     // ── Fetch ─────────────────────────────────────────────────
@@ -180,6 +185,7 @@ export default function UnifiedCalendarPage() {
         setModalKind(kind);
         setPForm({ ...emptyPersonal(), start: ts });
         setCForm({ ...emptyCompany(), start: ts });
+        setPAllDay(false);
         setDetailEvent(null);
         setShowModal(true);
     };
@@ -196,6 +202,7 @@ export default function UnifiedCalendarPage() {
                 end: evt.end ? format(parseISO(evt.end), "yyyy-MM-dd'T'HH:mm") : '',
                 location: evt.location || '',
             });
+            setPAllDay(!!evt.isAllDay);
         } else {
             setCForm({
                 title: evt.title, description: evt.description || '', type: evt.type,
@@ -215,10 +222,13 @@ export default function UnifiedCalendarPage() {
         setSaving(true);
         try {
             if (modalKind === 'personal') {
+                const pIsAllDay = pForm.type === 'Holiday' || pAllDay;
+                const pStart = pIsAllDay ? `${pForm.start.split('T')[0]}T00:00` : pForm.start;
                 const payload: any = {
                     title: pForm.title, description: pForm.description,
-                    type: pForm.type, start: pForm.start,
-                    end: pForm.end || undefined, location: pForm.location,
+                    type: pForm.type, start: pStart,
+                    end: pIsAllDay ? undefined : (pForm.end || undefined), location: pForm.location,
+                    isAllDay: pIsAllDay,
                     recurrence: { frequency: 'None', interval: 1 },
                 };
                 const res = editingEvent && editingKind === 'personal'
@@ -227,7 +237,9 @@ export default function UnifiedCalendarPage() {
                 if (res.success) { toast.success(editingEvent ? 'Event updated' : 'Event created'); setShowModal(false); fetchAll(); }
                 else toast.error(res.error || 'Failed to save');
             } else {
-                const payload = { ...cForm, end: cForm.end || undefined };
+                const cIsAllDay = HOLIDAY_TYPES.includes(cForm.type) || cForm.isAllDay;
+                const cStart = cIsAllDay ? `${cForm.start.split('T')[0]}T00:00` : cForm.start;
+                const payload = { ...cForm, isAllDay: cIsAllDay, start: cStart, end: cIsAllDay ? undefined : (cForm.end || undefined) };
                 const res = editingEvent && editingKind === 'company'
                     ? await updateCompanyEvent(editingEvent._id, payload)
                     : await createCompanyEvent(payload);
@@ -615,7 +627,6 @@ export default function UnifiedCalendarPage() {
                                         const { personal, company } = eventsForDay(day);
                                         const isCurrentMonth = isSameMonth(day, currentDate);
                                         const todayDay = isToday(day);
-                                        const isSun = day.getDay() === 0;
                                         const limit = view === 'week' ? 10 : 3;
                                         const overflow = Math.max(0, (personal.length + company.length) - limit);
                                         const shownPersonal = personal.slice(0, limit);
@@ -625,6 +636,7 @@ export default function UnifiedCalendarPage() {
                                         const holiday = holidayForDay(day);
                                         const activeHoliday = holiday && !holiday.isWorkingDay ? holiday : null;
                                         const theme = activeHoliday ? holidayTheme(activeHoliday.theme) : null;
+                                        const treatment = dayCellTreatment(day, holiday ?? null);
 
                                         return (
                                             <div
@@ -634,16 +646,13 @@ export default function UnifiedCalendarPage() {
                                                     "cursor-pointer transition-colors relative",
                                                     view === 'week' ? 'min-h-[280px]' : 'min-h-[100px]',
                                                     !isCurrentMonth && view === 'month' ? 'bg-muted/20' : '',
-                                                    // Holiday theme takes precedence over the default cell tints
-                                                    activeHoliday && theme ? theme.cell :
+                                                    treatment.kind !== 'normal' ? treatment.cellClass :
                                                         todayDay ? 'bg-primary/[0.03]' : 'hover:bg-muted/20',
-                                                    activeHoliday && theme?.festive ? 'holiday-festive' : '',
-                                                    isSun && isCurrentMonth && !todayDay && !activeHoliday ? 'bg-red-50/20' : '',
                                                 )}
                                             >
                                                 <div className="flex justify-between items-center p-1.5 pb-0.5">
                                                     {activeHoliday
-                                                        ? <span className="text-sm leading-none select-none" title={activeHoliday.name}>{theme?.emoji}</span>
+                                                        ? <span className={cn(treatment.kind === 'festival' && 'festival-emoji', "text-sm leading-none select-none")} title={activeHoliday.name}>{theme?.emoji}</span>
                                                         : holiday?.isWorkingDay
                                                             ? <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-600/70">Working</span>
                                                             : <span />}
@@ -651,8 +660,7 @@ export default function UnifiedCalendarPage() {
                                                         "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
                                                         todayDay ? 'bg-primary text-white shadow-sm shadow-primary/30' :
                                                         !isCurrentMonth ? 'text-muted-foreground/40' :
-                                                        activeHoliday ? 'text-foreground' :
-                                                        isSun ? 'text-red-400' : 'text-foreground'
+                                                        treatment.dateNumClass
                                                     )}>
                                                         {format(day, 'd')}
                                                     </span>
@@ -665,7 +673,9 @@ export default function UnifiedCalendarPage() {
                                                                 onClick={e => { e.stopPropagation(); setDetailEvent({ ...holiday, _isHoliday: true }); }}
                                                                 className={cn(
                                                                     "w-full flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-bold leading-tight text-left",
-                                                                    activeHoliday && theme ? cn(theme.chip, 'shadow-sm') : 'bg-muted text-muted-foreground line-through decoration-1'
+                                                                    holiday.isWorkingDay ? 'bg-muted text-muted-foreground line-through decoration-1'
+                                                                        : treatment.ribbonClass ?? 'bg-red-500 text-white',
+                                                                    !holiday.isWorkingDay && 'shadow-sm'
                                                                 )}
                                                                 title={holiday.isWorkingDay ? `${holiday.name} (working day)` : holiday.name}
                                                             >
@@ -678,6 +688,11 @@ export default function UnifiedCalendarPage() {
                                                             <p className="text-[9px] text-muted-foreground pl-2 font-medium">+{overflow} more</p>
                                                         )}
                                                     </div>
+                                                )}
+                                                {treatment.caption && (isCurrentMonth || view === 'week') && (
+                                                    <span className="absolute bottom-0.5 left-0 right-0 text-center text-[7.5px] font-extrabold uppercase tracking-widest text-rose-400 pointer-events-none">
+                                                        {treatment.caption}
+                                                    </span>
                                                 )}
                                             </div>
                                         );
@@ -864,16 +879,50 @@ export default function UnifiedCalendarPage() {
                                         <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</Label>
                                         <textarea rows={2} className={INP + " resize-none"} placeholder="Details…" value={pForm.description} onChange={e => setPForm(f => ({ ...f, description: e.target.value }))} />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground">Start</Label>
-                                            <input type="datetime-local" required className={INP} value={pForm.start} onChange={e => setPForm(f => ({ ...f, start: e.target.value }))} />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground">End</Label>
-                                            <input type="datetime-local" className={INP} value={pForm.end} onChange={e => setPForm(f => ({ ...f, end: e.target.value }))} />
-                                        </div>
-                                    </div>
+                                    {(() => {
+                                        const isHoliday = pForm.type === 'Holiday';
+                                        const allDay = isHoliday || pAllDay;
+                                        const [datePart, timePart = '09:00'] = pForm.start.split('T');
+                                        return (
+                                            <div className="space-y-3">
+                                                <div className="inline-flex border border-border rounded-lg overflow-hidden text-xs font-bold">
+                                                    {(['Timed', 'All-day'] as const).map(m => (
+                                                        <button key={m} type="button" disabled={isHoliday}
+                                                            onClick={() => setPAllDay(m === 'All-day')}
+                                                            className={cn("px-3 py-1.5 transition-colors",
+                                                                (m === 'All-day') === allDay ? 'bg-primary text-white' : 'text-muted-foreground',
+                                                                isHoliday && 'opacity-60')}>
+                                                            {m === 'Timed' ? '⏰ Timed' : '📅 All-day'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs text-muted-foreground mb-1 block">Date</Label>
+                                                    <DateQuickPick value={datePart}
+                                                        onChange={d => setPForm(f => ({ ...f, start: `${d}T${timePart}`, end: f.end ? `${d}T${f.end.split('T')[1]}` : f.end }))} />
+                                                </div>
+                                                {!allDay && (
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <Label className="text-xs text-muted-foreground">Start</Label>
+                                                        <TimeSelect value={timePart}
+                                                            onChange={t => setPForm(f => ({ ...f, start: `${datePart}T${t}` }))} />
+                                                        {DURATION_CHIPS.map(c => (
+                                                            <button key={c.label} type="button"
+                                                                onClick={() => setPForm(f => ({ ...f, end: applyDuration(f.start, c.minutes) }))}
+                                                                className={cn("px-2 py-1 rounded-full border text-[11px] font-semibold",
+                                                                    pForm.end === applyDuration(pForm.start, c.minutes)
+                                                                        ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground')}>
+                                                                {c.label}
+                                                            </button>
+                                                        ))}
+                                                        <Label className="text-xs text-muted-foreground">End</Label>
+                                                        <TimeSelect value={(pForm.end || applyDuration(pForm.start, 60)).split('T')[1]}
+                                                            onChange={t => setPForm(f => ({ ...f, end: `${datePart}T${t}` }))} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     <div className="space-y-1.5">
                                         <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</Label>
                                         <Input value={pForm.location} onChange={e => setPForm(f => ({ ...f, location: e.target.value }))} placeholder="Optional" />
@@ -883,7 +932,7 @@ export default function UnifiedCalendarPage() {
                                 <>
                                     <div className="space-y-1.5">
                                         <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Event Type</Label>
-                                        <Select value={cForm.type} onValueChange={v => setCForm(f => ({ ...f, type: v as CompanyEventType }))}>
+                                        <Select value={cForm.type} onValueChange={v => setCForm(f => ({ ...f, type: v as CompanyEventType, isAllDay: HOLIDAY_TYPES.includes(v as CompanyEventType) ? true : f.isAllDay }))}>
                                             <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                                             <SelectContent className="bg-white">
                                                 <SelectItem value="National Holiday">🇮🇳 National Holiday</SelectItem>
@@ -908,33 +957,50 @@ export default function UnifiedCalendarPage() {
                                         <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</Label>
                                         <textarea rows={2} className={INP + " resize-none"} placeholder="Details, agenda…" value={cForm.description} onChange={e => setCForm(f => ({ ...f, description: e.target.value }))} />
                                     </div>
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <button
-                                            type="button"
-                                            onClick={() => setCForm(f => ({ ...f, isAllDay: !f.isAllDay }))}
-                                            className={cn("relative inline-flex h-5 w-9 rounded-full transition-colors shrink-0", cForm.isAllDay ? 'bg-primary' : 'bg-muted')}
-                                        >
-                                            <span className={cn("inline-block h-4 w-4 m-0.5 rounded-full bg-white shadow transition-transform", cForm.isAllDay ? 'translate-x-4' : 'translate-x-0')} />
-                                        </button>
-                                        <span className="text-sm text-foreground font-medium">All day</span>
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground">{cForm.isAllDay ? 'Date' : 'Start'}</Label>
-                                            <input
-                                                type={cForm.isAllDay ? 'date' : 'datetime-local'}
-                                                required className={INP}
-                                                value={cForm.isAllDay ? cForm.start.split('T')[0] : cForm.start}
-                                                onChange={e => setCForm(f => ({ ...f, start: cForm.isAllDay ? e.target.value + 'T00:00' : e.target.value }))}
-                                            />
-                                        </div>
-                                        {!cForm.isAllDay && (
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-muted-foreground">End</Label>
-                                                <input type="datetime-local" className={INP} value={cForm.end} onChange={e => setCForm(f => ({ ...f, end: e.target.value }))} />
+                                    {(() => {
+                                        const cIsHoliday = HOLIDAY_TYPES.includes(cForm.type);
+                                        const allDay = cIsHoliday || cForm.isAllDay;
+                                        const [datePart, timePart = '09:00'] = cForm.start.split('T');
+                                        return (
+                                            <div className="space-y-3">
+                                                <div className="inline-flex border border-border rounded-lg overflow-hidden text-xs font-bold">
+                                                    {(['Timed', 'All-day'] as const).map(m => (
+                                                        <button key={m} type="button" disabled={cIsHoliday}
+                                                            onClick={() => setCForm(f => ({ ...f, isAllDay: m === 'All-day' }))}
+                                                            className={cn("px-3 py-1.5 transition-colors",
+                                                                (m === 'All-day') === allDay ? 'bg-primary text-white' : 'text-muted-foreground',
+                                                                cIsHoliday && 'opacity-60')}>
+                                                            {m === 'Timed' ? '⏰ Timed' : '📅 All-day'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs text-muted-foreground mb-1 block">Date</Label>
+                                                    <DateQuickPick value={datePart}
+                                                        onChange={d => setCForm(f => ({ ...f, start: `${d}T${timePart}`, end: f.end ? `${d}T${f.end.split('T')[1]}` : f.end }))} />
+                                                </div>
+                                                {!allDay && (
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <Label className="text-xs text-muted-foreground">Start</Label>
+                                                        <TimeSelect value={timePart}
+                                                            onChange={t => setCForm(f => ({ ...f, start: `${datePart}T${t}` }))} />
+                                                        {DURATION_CHIPS.map(c => (
+                                                            <button key={c.label} type="button"
+                                                                onClick={() => setCForm(f => ({ ...f, end: applyDuration(f.start, c.minutes) }))}
+                                                                className={cn("px-2 py-1 rounded-full border text-[11px] font-semibold",
+                                                                    cForm.end === applyDuration(cForm.start, c.minutes)
+                                                                        ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground')}>
+                                                                {c.label}
+                                                            </button>
+                                                        ))}
+                                                        <Label className="text-xs text-muted-foreground">End</Label>
+                                                        <TimeSelect value={(cForm.end || applyDuration(cForm.start, 60)).split('T')[1]}
+                                                            onChange={t => setCForm(f => ({ ...f, end: `${datePart}T${t}` }))} />
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
+                                        );
+                                    })()}
                                     {isMeetingType(cForm.type) && (
                                         <>
                                             <div className="grid grid-cols-2 gap-3">

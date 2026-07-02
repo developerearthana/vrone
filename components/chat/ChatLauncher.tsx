@@ -164,7 +164,7 @@ export default function ChatLauncher() {
                         </div>
                         {/* Chat body */}
                         <div className="flex-1 min-h-0">
-                            <ChatInterface />
+                            <ChatInterface mode={view === 'full' ? 'page' : 'popup'} />
                         </div>
                     </motion.div>
                 )}

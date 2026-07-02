@@ -5,6 +5,7 @@ export interface IEvent extends Document {
     description?: string;
     start: Date;
     end?: Date;
+    isAllDay?: boolean;
     type: 'Meeting' | 'Task' | 'Reminder' | 'Holiday';
     attendees?: string[]; // User IDs or Names
     location?: string;
@@ -18,6 +19,7 @@ const EventSchema: Schema = new Schema(
         description: { type: String },
         start: { type: Date, required: true },
         end: { type: Date },
+        isAllDay: { type: Boolean, default: false },
         type: {
             type: String,
             enum: ['Meeting', 'Task', 'Reminder', 'Holiday'],
