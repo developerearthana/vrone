@@ -641,7 +641,7 @@ export default function UnifiedCalendarPage() {
                                             >
                                                 <div className="flex justify-between items-center p-1.5 pb-0.5">
                                                     {activeHoliday
-                                                        ? <span className="festival-emoji text-sm leading-none select-none" title={activeHoliday.name}>{theme?.emoji}</span>
+                                                        ? <span className={cn(treatment.kind === 'festival' && 'festival-emoji', "text-sm leading-none select-none")} title={activeHoliday.name}>{theme?.emoji}</span>
                                                         : holiday?.isWorkingDay
                                                             ? <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-600/70">Working</span>
                                                             : <span />}
