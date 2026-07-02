@@ -926,3 +926,22 @@ textarea:focus-visible {
   .page-btn, .page-btn-primary { transition: none; }
   .page-btn:active, .page-btn-primary:active { transform: none; }
 }
+
+/* ── Festival calendar cells (spec Part 1.1) ─────────────────────────── */
+.festival-cell {
+    background: linear-gradient(270deg, #f59e0b, #ec4899, #8b5cf6, #f59e0b);
+    background-size: 300% 100%;
+}
+.festival-emoji { display: inline-block; }
+@media (prefers-reduced-motion: no-preference) {
+    .festival-cell { animation: festival-shimmer 5s linear infinite; }
+    .festival-emoji { animation: festival-bob 2.4s ease-in-out infinite; }
+}
+@keyframes festival-shimmer {
+    0% { background-position: 0% 0; }
+    100% { background-position: 300% 0; }
+}
+@keyframes festival-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px) scale(1.15); }
+}
