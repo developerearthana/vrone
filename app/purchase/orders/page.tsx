@@ -44,7 +44,7 @@ export default function PurchaseOrdersPage() {
                 </div>
                 <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all font-medium"
+                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:brightness-[1.08] shadow-lg shadow-primary/20 transition-all font-medium"
                 >
                     <Plus className="w-4 h-4" />
                     Create Purchase Order
@@ -70,7 +70,7 @@ export default function PurchaseOrdersPage() {
                             onClick={() => setFilterStatus(status)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
                                 ${filterStatus === status
-                                    ? 'bg-white text-white'
+                                    ? 'bg-primary text-primary-foreground'
                                     : 'bg-white border border-gray-200 text-gray-600 hover:bg-background'}`}
                         >
                             {status}
@@ -120,13 +120,13 @@ export default function PurchaseOrdersPage() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors" title="View Details">
+                                            <button className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors" title="View Details">
                                                 <Eye className="w-4 h-4" />
                                             </button>
-                                            <button className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg transition-colors" title="Download PDF">
+                                            <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="Download PDF">
                                                 <Download className="w-4 h-4" />
                                             </button>
-                                            <button aria-label="More Actions" className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg transition-colors">
+                                            <button aria-label="More Actions" className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
                                                 <MoreHorizontal className="w-4 h-4" />
                                             </button>
                                         </div>

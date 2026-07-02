@@ -39,7 +39,7 @@ export default function VendorRFQPage() {
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl font-bold text-gray-900">Active RFQs</h2>
-                    <button className="text-sm font-medium text-blue-600 hover:bg-white px-3 py-1.5 rounded-lg transition-colors">
+                    <button className="text-sm font-medium text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors">
                         View All History
                     </button>
                 </div>
@@ -59,8 +59,8 @@ export default function VendorRFQPage() {
                             </div>
                         </div>
                     ))}
-                    <button className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:border-blue-300 hover:text-blue-600 hover:bg-white/50 transition-all gap-2 group">
-                        <div className="p-2 bg-white rounded-full group-hover:bg-blue-100 transition-colors">
+                    <button className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted-foreground/60 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all gap-2 group">
+                        <div className="p-2 bg-muted rounded-full group-hover:bg-primary/10 transition-colors">
                             <Plus className="w-5 h-5" />
                         </div>
                         <span className="font-medium">Create New RFQ</span>
@@ -111,7 +111,7 @@ export default function VendorRFQPage() {
                                     {vendor.phone || 'N/A'}
                                 </div>
                             </div>
-                            <button className="w-full py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-background hover:text-gray-900 transition-colors flex items-center justify-center gap-2">
+                            <button className="w-full py-2 border border-border rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center gap-2">
                                 View Profile <ExternalLink className="w-3 h-3" />
                             </button>
                         </div>

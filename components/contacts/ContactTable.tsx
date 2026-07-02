@@ -144,7 +144,7 @@ export default function ContactTable({ filterType, contacts = [] }: { filterType
                                                 <div className="flex items-center gap-2">
                                                     <span className={cn("w-2 h-2 rounded-full",
                                                         contact.status === 'Active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' :
-                                                            contact.status === 'Inactive' ? 'bg-white' : 'bg-white0 shadow-[0_0_8px_rgba(59,130,246,0.4)]'
+                                                            contact.status === 'Inactive' ? 'bg-white' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]'
                                                     )} />
                                                     <span className="text-sm font-medium text-gray-700">{contact.status}</span>
                                                 </div>

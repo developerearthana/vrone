@@ -806,7 +806,7 @@ export default function StageDetailPage({ params }: { params: Promise<{ id: stri
                                     <div className="px-4 pb-3">
                                         <button
                                             onClick={() => setMbShowForm(p => ({ ...p, [moduleName]: true }))}
-                                            className="w-full text-xs text-primary font-medium hover:bg-blue-50 transition-colors py-2 border border-dashed border-gray-200 rounded-md">
+                                            className="w-full text-xs text-primary font-medium hover:bg-primary/5 transition-colors py-2 border border-dashed border-border rounded-md">
                                             + Add Task
                                         </button>
                                     </div>

@@ -2,8 +2,11 @@
 
 import { Activity, CreditCard, DollarSign, Users, Calendar, ArrowUpRight, MapPin, Clock, LogIn, LogOut, UserX, TrendingUp, TrendingDown, Target, Zap, FolderDot } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import '@/lib/gsap';
+import { gsap } from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { PageWrapper, CardWrapper } from '@/components/ui/page-wrapper';
 import { KPIEntryModal } from '@/components/goals/KPIEntryModal';
 import { KPI_METRICS } from '@/lib/constants';
@@ -36,6 +39,18 @@ export default function ExecutiveDashboard({ user }: { user?: any }) {
     const [location, setLocation] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState<Date | null>(null);
     const [showKPIModal, setShowKPIModal] = useState(false);
+    const kpiGridRef = useRef<HTMLDivElement>(null);
+
+    useGSAP(() => {
+        gsap.from(".kpi-mini-icon", {
+            scale: 0,
+            rotate: -90,
+            opacity: 0,
+            duration: 0.6,
+            stagger: 0.12,
+            ease: "back.out(1.7)",
+        });
+    }, { scope: kpiGridRef });
 
     // Mock Subsidiaries
     const subsidiaries = ["All", "Rudra Architectural Studio (RAS)", "Gridwise", "Metrum Works", "Rite Hands"];
@@ -93,11 +108,11 @@ export default function ExecutiveDashboard({ user }: { user?: any }) {
                     <div className="h-8 w-px bg-white hidden md:block" />
                     <div className="flex gap-2">
                         {!punchedIn ? (
-                            <button onClick={() => handlePunch('in')} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-200">
+                            <button onClick={() => handlePunch('in')} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:brightness-[1.08] transition-colors shadow-lg shadow-primary/20">
                                 <LogIn className="w-4 h-4" /> Punch In
                             </button>
                         ) : (
-                            <button onClick={() => handlePunch('out')} className="flex items-center gap-2 px-4 py-2 bg-white0 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 transition-colors shadow-lg shadow-orange-200">
+                            <button onClick={() => handlePunch('out')} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors shadow-lg shadow-red-200">
                                 <LogOut className="w-4 h-4" /> Punch Out
                             </button>
                         )}
@@ -109,7 +124,7 @@ export default function ExecutiveDashboard({ user }: { user?: any }) {
             </div>
 
             {/* KPI Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div ref={kpiGridRef} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {[
                     { label: "Total Revenue", value: "₹45.2 L", trend: "+20.1%", icon: DollarSign, color: "text-primary", bg: "bg-primary/10", chart: revenueData },
                     { label: "Active Projects", value: "12", trend: "On Track", icon: Zap, color: "text-primary", bg: "bg-primary/10", chart: null },
@@ -126,7 +141,7 @@ export default function ExecutiveDashboard({ user }: { user?: any }) {
                                     <ArrowUpRight className="w-3 h-3" /> {stat.trend}
                                 </div>
                             </div>
-                            <div className={cn("p-3 rounded-xl", stat.bg, stat.color)}>
+                            <div className="kpi-mini-icon p-3 rounded-xl bg-green-600/10 text-green-600">
                                 <stat.icon className="w-5 h-5" />
                             </div>
                         </div>

@@ -4,6 +4,7 @@ import { Target, CalendarDays, ArrowUpRight, CheckCircle2, Clock, Filter, AlertT
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
+import { StatCard } from '@/components/ui/stat-card';
 import { getGoalDashboardData } from '@/app/actions/goal';
 import { getAppraisals } from '@/app/actions/appraisal';
 import { toast } from 'sonner';
@@ -136,57 +137,14 @@ export default function GoalsDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-muted-foreground font-medium">Overall Progress</p>
-                            <h3 className="text-2xl font-bold text-foreground mt-1">{filteredStats.progressAvg}%</h3>
-                        </div>
-                        <div className="p-2 bg-muted rounded-lg">
-                            <Target className="w-5 h-5 text-primary" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-secondary-foreground">Average completion across filtered goals</p>
-                </div>
-
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-muted-foreground font-medium">Current Period</p>
-                            <h3 className="text-xl font-bold text-foreground mt-1 truncate">{selectedPeriod}</h3>
-                        </div>
-                        <div className="p-2 bg-muted rounded-lg">
-                            <CalendarDays className="w-5 h-5 text-primary" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Filtered planning cycle</p>
-                </div>
-
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-muted-foreground font-medium">Goals On Track</p>
-                            <h3 className="text-2xl font-bold text-foreground mt-1">{filteredStats.onTrackCount}/{filteredStats.totalGoals}</h3>
-                        </div>
-                        <div className="p-2 bg-muted rounded-lg">
-                            <CheckCircle2 className="w-5 h-5 text-secondary-foreground" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Progress at 70% or above</p>
-                </div>
-
-                <div className="glass-card p-5 rounded-xl border border-border flex flex-col justify-between h-32">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-muted-foreground font-medium">Goals At Risk</p>
-                            <h3 className="text-2xl font-bold text-foreground mt-1">{filteredStats.atRiskCount}</h3>
-                        </div>
-                        <div className="p-2 bg-red-500/10 rounded-lg">
-                            <AlertTriangle className="w-5 h-5 text-red-600" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Progress below 50%</p>
-                </div>
+                {[
+                    { label: "Overall Progress", value: `${filteredStats.progressAvg}%`, sub: "Average completion across filtered goals", icon: Target, iconColor: "text-primary" },
+                    { label: "Current Period", value: selectedPeriod, sub: "Filtered planning cycle", icon: CalendarDays, iconColor: "text-primary" },
+                    { label: "Goals On Track", value: `${filteredStats.onTrackCount}/${filteredStats.totalGoals}`, sub: "Progress at 70% or above", icon: CheckCircle2, iconColor: "text-secondary-foreground" },
+                    { label: "Goals At Risk", value: filteredStats.atRiskCount, sub: "Progress below 50%", icon: AlertTriangle, iconColor: "text-red-600" },
+                ].map((stat, idx) => (
+                    <StatCard key={stat.label} index={idx} {...stat} />
+                ))}
             </div>
 
             <div className="glass-card rounded-xl overflow-hidden">

@@ -6,6 +6,7 @@ import { getCandidates, createCandidate, updateCandidateStage, deleteCandidate }
 import { PageWrapper } from '@/components/ui/page-wrapper';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface Candidate {
     _id: string;
@@ -98,12 +99,9 @@ export default function RecruitmentPage() {
                     <h1 className="page-title">Recruitment Pipeline</h1>
                     <p className="page-subtitle">Manage candidates and interview schedules.</p>
                 </div>
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm w-fit"
-                >
+                <Button onClick={() => setShowModal(true)} className="w-fit">
                     <Plus className="w-4 h-4" /> Add Candidate
-                </button>
+                </Button>
             </div>
 
             {loading ? (
@@ -232,11 +230,10 @@ export default function RecruitmentPage() {
                                 </div>
                             ))}
                             <div className="flex justify-end gap-2 pt-2">
-                                <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg transition-colors">Cancel</button>
-                                <button onClick={handleAdd} disabled={saving}
-                                    className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                                <Button variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>
+                                <Button onClick={handleAdd} disabled={saving}>
                                     {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Add Candidate
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>

@@ -210,7 +210,7 @@ export function WorkOrderCreateModal({ isOpen, onClose, onSubmit, projects, subs
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200"
+                            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:brightness-[1.08] transition-colors font-medium shadow-sm shadow-primary/20"
                         >
                             Create Work Order
                         </button>

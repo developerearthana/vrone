@@ -178,7 +178,7 @@ export default function ProjectTemplatesMaster() {
                 </div>
                 <button
                     onClick={() => setShowCreateDialog(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-[1.08] flex items-center gap-2"
                 >
                     <Plus className="w-4 h-4" />
                     New Template
@@ -226,7 +226,7 @@ export default function ProjectTemplatesMaster() {
                             <button
                                 onClick={handleCreate}
                                 disabled={!newTemplateName.trim() || creating}
-                                className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                                className="flex-1 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:brightness-[1.08] rounded-lg disabled:opacity-50"
                             >
                                 {creating ? "Creating..." : "Create"}
                             </button>
@@ -308,7 +308,7 @@ export default function ProjectTemplatesMaster() {
                                     <button
                                         onClick={handleSave}
                                         disabled={saving}
-                                        className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 disabled:opacity-50"
+                                        className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:brightness-[1.08] rounded-lg flex items-center gap-2 disabled:opacity-50"
                                     >
                                         <Save className="w-4 h-4" />
                                         {saving ? "Saving..." : "Save"}
@@ -417,7 +417,7 @@ export default function ProjectTemplatesMaster() {
                                     />
                                     <button
                                         onClick={addStage}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+                                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-[1.08] flex items-center gap-2"
                                     >
                                         <Plus className="w-4 h-4" />
                                         Add Stage

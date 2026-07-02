@@ -38,6 +38,7 @@ export default async function AccountsDashboard() {
 
             <div className="stat-grid">
                 <StatCard
+                    index={0}
                     label="Total Income"
                     value={formatINR(summary.totalIncome)}
                     sub={changeSub(summary.incomeChange)}
@@ -46,6 +47,7 @@ export default async function AccountsDashboard() {
                     trend={summary.incomeChange !== null ? (summary.incomeChange >= 0 ? 'up' : 'down') : undefined}
                 />
                 <StatCard
+                    index={1}
                     label="Total Expenses"
                     value={formatINR(summary.totalExpenses)}
                     sub={changeSub(summary.expenseChange)}
@@ -54,6 +56,7 @@ export default async function AccountsDashboard() {
                     trend={summary.expenseChange !== null ? (summary.expenseChange <= 0 ? 'up' : 'down') : undefined}
                 />
                 <StatCard
+                    index={2}
                     label="Net Profit"
                     value={formatINR(summary.netProfit)}
                     sub={changeSub(summary.profitChange)}
@@ -62,6 +65,7 @@ export default async function AccountsDashboard() {
                     trend={summary.profitChange !== null ? (summary.profitChange >= 0 ? 'up' : 'down') : undefined}
                 />
                 <StatCard
+                    index={3}
                     label="Cash on Hand"
                     value={formatINR(summary.cashOnHand)}
                     sub={`Across ${summary.bankCount} bank account${summary.bankCount !== 1 ? 's' : ''}`}

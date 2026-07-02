@@ -86,7 +86,7 @@ export default function SimulationLaunchpad() {
 
                             <Link
                                 href={persona.link}
-                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-white text-white rounded-xl hover:bg-indigo-600 transition-all font-medium"
+                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl hover:brightness-[1.08] transition-all font-medium"
                             >
                                 <LayoutDashboard className="w-4 h-4" />
                                 Launch Dashboard

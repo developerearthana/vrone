@@ -30,7 +30,7 @@ export default function TestPage() {
                             setActionResult('Error: ' + e.message);
                         }
                     }}
-                    className="bg-white0 text-white px-4 py-2 rounded"
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded"
                 >
                     Run Server Action
                 </button>
@@ -48,7 +48,7 @@ export default function TestPage() {
                             setDbResult('Error: ' + e.message);
                         }
                     }}
-                    className="bg-white0 text-white px-4 py-2 rounded"
+                    className="bg-primary text-primary-foreground px-4 py-2 rounded"
                 >
                     Run DB Action
                 </button>

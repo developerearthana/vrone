@@ -48,10 +48,10 @@ export default function InventoryDashboard() {
             </div>
 
             <div className="stat-grid">
-                <StatCard label="Total Products" value={stats.totalProducts.toLocaleString()} sub="Items" icon={Package} iconColor="text-blue-600" />
-                <StatCard label="Low Stock" value={stats.lowStockCount.toLocaleString()} sub="Needs attention" icon={AlertTriangle} iconColor="text-orange-600" trend="down" />
-                <StatCard label="Out of Stock" value={stats.outOfStock.toLocaleString()} sub="Critical" icon={AlertCircle} iconColor="text-red-600" trend="down" />
-                <StatCard label="Total Value" value={`₹${(stats.totalValue / 100000).toFixed(2)} L`} sub="Estimated value" icon={TrendingUp} iconColor="text-green-600" trend="up" />
+                <StatCard index={0} label="Total Products" value={stats.totalProducts.toLocaleString()} sub="Items" icon={Package} iconColor="text-blue-600" />
+                <StatCard index={1} label="Low Stock" value={stats.lowStockCount.toLocaleString()} sub="Needs attention" icon={AlertTriangle} iconColor="text-orange-600" trend="down" />
+                <StatCard index={2} label="Out of Stock" value={stats.outOfStock.toLocaleString()} sub="Critical" icon={AlertCircle} iconColor="text-red-600" trend="down" />
+                <StatCard index={3} label="Total Value" value={`₹${(stats.totalValue / 100000).toFixed(2)} L`} sub="Estimated value" icon={TrendingUp} iconColor="text-green-600" trend="up" />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">

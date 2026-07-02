@@ -123,7 +123,7 @@ export function RoleForm({ initialData, isEditing = false, readOnly = false }: R
                         {/* Legend/Help - Hide in readOnly? Maybe keep for context */}
                         <div className="group relative">
                             <Info className="w-4 h-4 text-gray-400 hover:text-primary cursor-help" />
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-6 top-0 w-64 bg-white text-white text-xs p-2.5 rounded shadow-lg pointer-events-none z-50">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-6 top-0 w-64 bg-foreground text-background text-xs p-2.5 rounded shadow-lg pointer-events-none z-50">
                                 <p className="font-semibold mb-1">Granular Control</p>
                                 <p>Select specific actions for each module. Selecting an action (Create/Edit/etc) automatically grants View access.</p>
                             </div>

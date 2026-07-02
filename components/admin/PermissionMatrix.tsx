@@ -85,7 +85,7 @@ export function PermissionMatrix({ selectedPermissions, onToggle, readOnly = fal
                             <th key={action.code} className="px-2 py-3 text-center font-medium w-24">
                                 <div className="flex flex-col items-center group cursor-help">
                                     <span>{action.label}</span>
-                                    <span className="opacity-0 group-hover:opacity-100 absolute -mt-8 bg-white text-white text-[10px] px-2 py-1 rounded transition-opacity normal-case">
+                                    <span className="opacity-0 group-hover:opacity-100 absolute -mt-8 bg-foreground text-background text-[10px] px-2 py-1 rounded transition-opacity normal-case">
                                         {action.description}
                                     </span>
                                 </div>

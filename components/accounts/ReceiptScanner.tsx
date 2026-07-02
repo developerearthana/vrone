@@ -40,7 +40,7 @@ export function ReceiptScanner() {
                             <p className="text-sm text-gray-500 max-w-[200px] mb-6">Drag & drop your invoice image here or click to browse</p>
                             <button
                                 onClick={handleUpload}
-                                className="px-6 py-2 bg-white text-white rounded-lg font-bold text-sm hover:bg-black transition-all shadow-lg"
+                                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-bold text-sm hover:brightness-[1.08] transition-all shadow-lg"
                             >
                                 Select Image
                             </button>

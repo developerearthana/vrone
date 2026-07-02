@@ -178,10 +178,10 @@ export default function ProjectsDashboard() {
             </div>
 
             <div className="stat-grid">
-                <StatCard label="Total Projects" value={stats.total} sub="Active" icon={Briefcase} iconColor="text-blue-600" />
-                <StatCard label="Completed" value={stats.completed} sub="This year" icon={CheckCircle2} iconColor="text-green-600" trend="up" />
-                <StatCard label="In Progress" value={stats.inProgress} sub="On track" icon={Clock} iconColor="text-purple-600" />
-                <StatCard label="At Risk" value={stats.atRisk} sub="Needs attention" icon={AlertTriangle} iconColor="text-red-600" trend="down" />
+                <StatCard index={0} label="Total Projects" value={stats.total} sub="Active" icon={Briefcase} iconColor="text-blue-600" />
+                <StatCard index={1} label="Completed" value={stats.completed} sub="This year" icon={CheckCircle2} iconColor="text-green-600" trend="up" />
+                <StatCard index={2} label="In Progress" value={stats.inProgress} sub="On track" icon={Clock} iconColor="text-purple-600" />
+                <StatCard index={3} label="At Risk" value={stats.atRisk} sub="Needs attention" icon={AlertTriangle} iconColor="text-red-600" trend="down" />
             </div>
 
             {/* Filters */}

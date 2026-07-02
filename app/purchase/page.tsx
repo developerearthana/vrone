@@ -1,10 +1,11 @@
 "use client";
 
-import { ShoppingCart, Truck, Clock, IndianRupee, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ShoppingCart, Truck, Clock, IndianRupee } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getDashboardStats, getOrders } from '@/app/actions/purchase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { StatCard } from '@/components/ui/stat-card';
 
 export default function PurchaseDashboard() {
     const [stats, setStats] = useState<any>({ openOrders: 0, pendingGrn: 0, overdue: 0, monthlySpend: 0 });
@@ -32,10 +33,10 @@ export default function PurchaseDashboard() {
     };
 
     const statCards = [
-        { label: "Open Orders", value: stats.openOrders, trend: "Active", isUp: true, icon: ShoppingCart, color: "bg-white", textColor: "text-blue-600", border: "border-border" },
-        { label: "Pending GRN", value: stats.pendingGrn, trend: "Needs Action", isUp: false, icon: Truck, color: "bg-white", textColor: "text-orange-600", border: "border-border" },
-        { label: "Overdue Delivery", value: stats.overdue, trend: "Delayed", isUp: false, icon: Clock, color: "bg-red-50", textColor: "text-red-600", border: "border-red-100" },
-        { label: "Monthly Spend", value: `₹${(stats.monthlySpend / 100000).toFixed(1)} L`, trend: "Current Month", isUp: true, icon: IndianRupee, color: "bg-white", textColor: "text-green-600", border: "border-border" },
+        { label: "Open Orders", value: stats.openOrders, sub: "Active", trend: "up" as const, icon: ShoppingCart, iconColor: "text-primary" },
+        { label: "Pending GRN", value: stats.pendingGrn, sub: "Needs Action", trend: "down" as const, icon: Truck, iconColor: "text-amber-500" },
+        { label: "Overdue Delivery", value: stats.overdue, sub: "Delayed", trend: "down" as const, icon: Clock, iconColor: "text-red-600" },
+        { label: "Monthly Spend", value: `₹${(stats.monthlySpend / 100000).toFixed(1)} L`, sub: "Current Month", trend: "up" as const, icon: IndianRupee, iconColor: "text-emerald-600" },
     ];
 
     return (
@@ -48,21 +49,7 @@ export default function PurchaseDashboard() {
             {/* Stats Grid Standardized */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((stat, idx) => (
-                    <div key={idx} className={`glass-card p-5 rounded-xl border ${stat.border} flex flex-col justify-between h-32`}>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                                <h3 className="text-2xl font-bold text-foreground mt-1">{stat.value}</h3>
-                            </div>
-                            <div className={`p-2 rounded-lg ${stat.color}`}>
-                                <stat.icon className={`w-5 h-5 ${stat.textColor}`} />
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                            {stat.isUp ? <ArrowUpRight className="w-3 h-3 text-gray-400" /> : <ArrowDownRight className="w-3 h-3 text-red-400" />}
-                            {stat.trend}
-                        </p>
-                    </div>
+                    <StatCard key={stat.label} index={idx} {...stat} />
                 ))}
             </div>
 
@@ -71,7 +58,7 @@ export default function PurchaseDashboard() {
                 <div className="lg:col-span-2 glass-card p-6 rounded-xl">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-bold text-foreground">Recent Purchase Orders</h3>
-                        <button className="text-sm text-blue-600 font-medium hover:text-blue-700">View All</button>
+                        <button className="text-sm text-primary font-medium hover:text-primary/80">View All</button>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
@@ -128,7 +115,7 @@ export default function PurchaseDashboard() {
                             <p className="text-xs text-gray-500 mb-3">Requested by: System</p>
                             <div className="flex items-center justify-between">
                                 <span className="font-bold text-foreground">₹12,400</span>
-                                <button className="text-xs font-medium bg-white text-white px-3 py-1.5 rounded-lg hover:bg-white transition-colors opacity-0 group-hover:opacity-100">Review</button>
+                                <button className="text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:brightness-[1.08] transition-colors opacity-0 group-hover:opacity-100">Review</button>
                             </div>
                         </div>
                     </div>

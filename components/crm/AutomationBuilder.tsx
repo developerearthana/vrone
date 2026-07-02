@@ -34,7 +34,7 @@ export function AutomationBuilder() {
                     </h3>
                     <p className="text-sm text-gray-500">Automate your sales workflow with simple rules.</p>
                 </div>
-                <button onClick={() => setShowBuilder(!showBuilder)} className="bg-white text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg hover:bg-white transition-all flex items-center gap-2">
+                <button onClick={() => setShowBuilder(!showBuilder)} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold shadow-lg hover:brightness-[1.08] transition-all flex items-center gap-2">
                     <Plus className="w-4 h-4" /> New Rule
                 </button>
             </div>

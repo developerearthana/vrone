@@ -110,7 +110,7 @@ export function LeaveCalendar() {
                                         <div className={cn(
                                             "w-1.5 h-1.5 rounded-full mb-1",
                                             leave.type === 'Sick' ? "bg-red-500" :
-                                                leave.type === 'Casual' ? "bg-white0" :
+                                                leave.type === 'Casual' ? "bg-blue-500" :
                                                     leave.type === 'Holiday' ? "bg-amber-500" : "bg-white"
                                         )} />
                                         <span className="text-[9px] font-medium text-gray-500 hidden md:block">
@@ -135,7 +135,7 @@ export function LeaveCalendar() {
             <div className="mt-6 border-t border-gray-100 pt-4 flex justify-between items-center text-sm">
                 <div className="flex gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-white0"></div> <span className="text-gray-600">Casual (12)</span>
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div> <span className="text-gray-600">Casual (12)</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-red-500"></div> <span className="text-gray-600">Sick (5)</span>

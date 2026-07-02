@@ -235,7 +235,7 @@ function ReconciliationView({ accountId }: { accountId: string }) {
                         </p>
                     </div>
                     <div className="pt-4">
-                        <label className="cursor-pointer bg-white text-white px-6 py-2.5 rounded-lg hover:bg-white transition-colors shadow-sm inline-flex items-center gap-2">
+                        <label className="cursor-pointer bg-primary text-primary-foreground px-6 py-2.5 rounded-lg hover:brightness-[1.08] transition-colors shadow-sm inline-flex items-center gap-2">
                             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                             {isUploading ? "Parsing..." : "Select CSV File"}
                             <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={isUploading} />

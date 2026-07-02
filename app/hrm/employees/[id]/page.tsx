@@ -76,7 +76,7 @@ export default function EmployeeDetailsPage() {
                             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                 <FileText className="w-5 h-5 text-gray-500" /> Documents
                             </h2>
-                            <button className="flex items-center gap-2 text-sm text-blue-600 hover:bg-white px-3 py-1.5 rounded-lg transition-colors">
+                            <button className="flex items-center gap-2 text-sm text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors">
                                 <Upload className="w-4 h-4" /> Upload
                             </button>
                         </div>
@@ -95,7 +95,7 @@ export default function EmployeeDetailsPage() {
                                     <span className="text-xs text-gray-400">{doc.date}</span>
                                 </div>
                             ))}
-                            <button className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-200 rounded-lg text-gray-400 hover:border-gray-300 hover:text-gray-500 cursor-pointer transition-colors bg-transparent">
+                            <button className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-border rounded-lg text-muted-foreground/60 hover:border-border hover:text-muted-foreground cursor-pointer transition-colors bg-transparent">
                                 <Plus className="w-4 h-4" /> Add Relieving / Termination Order
                             </button>
                         </div>
@@ -107,13 +107,13 @@ export default function EmployeeDetailsPage() {
                             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                 <History className="w-5 h-5 text-gray-500" /> Remark History
                             </h2>
-                            <button className="text-sm text-gray-500 hover:text-gray-900">View All</button>
+                            <button className="text-sm text-muted-foreground hover:text-foreground">View All</button>
                         </div>
                         <div className="space-y-4">
                             {remarks.map(remark => (
                                 <div key={remark.id} className="flex gap-4">
                                     <div className="flex flex-col items-center">
-                                        <div className="w-2 h-2 rounded-full bg-white0 mt-2"></div>
+                                        <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
                                         <div className="w-0.5 h-full bg-background mt-2"></div>
                                     </div>
                                     <div className="pb-4">

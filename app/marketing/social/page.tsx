@@ -79,7 +79,7 @@ export default function SocialMediaPage() {
                 </div>
                 <Button
                     onClick={() => setIsPostModalOpen(true)}
-                    className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 bg-primary text-primary-foreground hover:brightness-[1.08] transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Create Post

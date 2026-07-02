@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { StatCard } from '@/components/ui/stat-card';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -157,32 +159,22 @@ export default function EnhancedPayrollPage() {
                     >
                         {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
-                    <button
-                        onClick={handleGenerateAll}
-                        disabled={generatingAll}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-60"
-                    >
+                    <Button onClick={handleGenerateAll} disabled={generatingAll}>
                         {generatingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                         Generate All
-                    </button>
+                    </Button>
                 </div>
             </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Gross', value: `₹${totalGross.toLocaleString()}`, icon: DollarSign, color: 'text-primary', bg: 'bg-primary/10' },
-                    { label: 'Total Net Pay', value: `₹${totalNet.toLocaleString()}`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-                    { label: 'Deductions', value: `₹${totalDeductions.toLocaleString()}`, icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },
-                    { label: 'Paid', value: `${paidCount}/${payrolls.length}`, icon: Check, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-                ].map(s => (
-                    <div key={s.label} className="glass-card rounded-xl p-4 border border-border bg-card">
-                        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3', s.bg)}>
-                            <s.icon className={cn('w-5 h-5', s.color)} />
-                        </div>
-                        <p className="text-xl font-bold text-foreground">{s.value}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
-                    </div>
+                    { label: 'Total Gross', value: `₹${totalGross.toLocaleString()}`, icon: DollarSign, iconColor: 'text-primary' },
+                    { label: 'Total Net Pay', value: `₹${totalNet.toLocaleString()}`, icon: TrendingUp, iconColor: 'text-emerald-600' },
+                    { label: 'Deductions', value: `₹${totalDeductions.toLocaleString()}`, icon: AlertCircle, iconColor: 'text-red-500' },
+                    { label: 'Paid', value: `${paidCount}/${payrolls.length}`, icon: Check, iconColor: 'text-emerald-600' },
+                ].map((s, idx) => (
+                    <StatCard key={s.label} index={idx} {...s} />
                 ))}
             </div>
 
@@ -261,21 +253,22 @@ export default function EnhancedPayrollPage() {
                                                     <td className="px-4 py-3.5 text-right">
                                                         <div className="flex items-center justify-end gap-1.5">
                                                             {!payroll ? (
-                                                                <button
+                                                                <Button
+                                                                    size="sm"
                                                                     onClick={e => { e.stopPropagation(); handleGenerateOne(emp); }}
                                                                     disabled={isGenerating}
-                                                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60"
                                                                 >
                                                                     {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
                                                                     Generate
-                                                                </button>
+                                                                </Button>
                                                             ) : payroll.status !== 'Paid' ? (
-                                                                <button
+                                                                <Button
+                                                                    size="sm"
                                                                     onClick={e => { e.stopPropagation(); handleMarkPaid(payroll); }}
-                                                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                                                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
                                                                 >
                                                                     <Check className="w-3 h-3" /> Mark Paid
-                                                                </button>
+                                                                </Button>
                                                             ) : (
                                                                 <span className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
                                                                     <Check className="w-3.5 h-3.5" /> Paid
@@ -397,12 +390,12 @@ export default function EnhancedPayrollPage() {
                                 </div>
 
                                 {selectedPayroll.status !== 'Paid' && (
-                                    <button
+                                    <Button
                                         onClick={() => handleMarkPaid(selectedPayroll)}
-                                        className="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                                        className="w-full bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl"
                                     >
                                         <Check className="w-4 h-4" /> Mark as Paid
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>

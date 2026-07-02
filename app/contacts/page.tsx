@@ -63,10 +63,10 @@ export default function ContactsPage() {
             </div>
 
             <div className="stat-grid">
-                <StatCard label="Total Contacts" value={stats.total} sub="All types" icon={Users} iconColor="text-blue-600" />
-                <StatCard label="Active Clients" value={stats.clients} sub="Recurrent" icon={Briefcase} iconColor="text-emerald-600" />
-                <StatCard label="Vendors" value={stats.vendors} sub="Active" icon={ShoppingBag} iconColor="text-orange-600" />
-                <StatCard label="Leads" value={stats.leads} sub="Potential" icon={UserPlus} iconColor="text-purple-600" />
+                <StatCard index={0} label="Total Contacts" value={stats.total} sub="All types" icon={Users} iconColor="text-blue-600" />
+                <StatCard index={1} label="Active Clients" value={stats.clients} sub="Recurrent" icon={Briefcase} iconColor="text-emerald-600" />
+                <StatCard index={2} label="Vendors" value={stats.vendors} sub="Active" icon={ShoppingBag} iconColor="text-orange-600" />
+                <StatCard index={3} label="Leads" value={stats.leads} sub="Potential" icon={UserPlus} iconColor="text-purple-600" />
             </div>
 
             {/* Contacts Table */}

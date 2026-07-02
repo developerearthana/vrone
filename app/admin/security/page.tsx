@@ -236,7 +236,7 @@ export default function SecurityDashboard() {
                                 </button>
                                 <button
                                     onClick={() => handleApproveRequest(req.id)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm flex items-center gap-2 shadow-sm"
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:brightness-[1.08] font-medium text-sm flex items-center gap-2 shadow-sm"
                                 >
                                     <CheckCircle className="w-4 h-4" />
                                     Approve Access

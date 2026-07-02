@@ -16,7 +16,7 @@ export default function AdjustmentsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Stock Adjustments</h1>
                     <p className="text-gray-500">Record corrections to stock levels.</p>
                 </div>
-                <button className="flex items-center gap-2 bg-white text-white px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm">
+                <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:brightness-[1.08] transition-colors shadow-sm">
                     <ArrowLeftRight className="w-4 h-4" />
                     New Adjustment
                 </button>

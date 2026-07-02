@@ -120,7 +120,7 @@ export function VerificationQueue() {
                                     </button>
                                     <button
                                         onClick={() => handleAction(claim.id, 'approve')}
-                                        className="py-2 px-4 rounded-lg bg-white text-white font-bold hover:bg-black transition-colors shadow-lg flex items-center gap-2"
+                                        className="py-2 px-4 rounded-lg bg-primary text-primary-foreground font-bold hover:brightness-[1.08] transition-colors shadow-lg flex items-center gap-2"
                                         title="Approve"
                                     >
                                         <Check className="w-4 h-4" /> Approve

@@ -107,7 +107,7 @@ function SortableDeal({ deal }: { deal: Deal }) {
                     <motion.div
                         className={cn("h-full rounded-full",
                             (deal.probability || 0) >= 80 ? "bg-emerald-500" :
-                                (deal.probability || 0) >= 50 ? "bg-white0" : "bg-amber-500"
+                                (deal.probability || 0) >= 50 ? "bg-blue-500" : "bg-amber-500"
                         )}
                         initial={{ width: 0 }}
                         animate={{ width: `${deal.probability || 0}%` }}

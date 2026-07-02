@@ -177,7 +177,7 @@ export default function CategoriesPage() {
                                         </td>
                                         <td className="px-6 py-3 text-gray-500">{cat.description || '-'}</td>
                                         <td className="px-6 py-3">
-                                            <span className={`w-2 h-2 rounded-full inline-block mr-2 ${cat.isActive ? 'bg-white0' : 'bg-white'}`}></span>
+                                            <span className={`w-2 h-2 rounded-full inline-block mr-2 ${cat.isActive ? 'bg-blue-500' : 'bg-white'}`}></span>
                                             {cat.isActive ? 'Active' : 'Inactive'}
                                         </td>
                                         <td className="px-6 py-3 text-right">

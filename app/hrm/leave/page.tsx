@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
 import {
     createHRMRequest, getMyHRMRequests, getAllHRMRequests,
     updateHRMRequestStatus, cancelHRMRequest,
@@ -171,7 +172,7 @@ export default function RequestsPage() {
                                     onClick={() => { setTab(t); setFilterStatus('All'); }}
                                     className={cn(
                                         "px-3 h-full font-medium capitalize transition-colors",
-                                        tab === t ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'
+                                        tab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                                     )}
                                 >
                                     {t === 'mine' ? 'My Requests' : 'All Requests'}
@@ -179,12 +180,9 @@ export default function RequestsPage() {
                             ))}
                         </div>
                     )}
-                    <button
-                        onClick={() => { setShowForm(true); setForm(emptyForm()); }}
-                        className="flex items-center gap-1.5 h-8 px-3 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20"
-                    >
+                    <Button size="sm" onClick={() => { setShowForm(true); setForm(emptyForm()); }}>
                         <Plus className="w-3.5 h-3.5" />New Request
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -425,17 +423,13 @@ export default function RequestsPage() {
                             )}
 
                             <div className="flex justify-between items-center pt-2 border-t border-border">
-                                <button type="button" onClick={() => setShowForm(false)} className="text-sm text-muted-foreground hover:text-foreground font-medium px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+                                <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
                                     Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
-                                >
+                                </Button>
+                                <Button type="submit" disabled={submitting}>
                                     {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                                     Submit Request
-                                </button>
+                                </Button>
                             </div>
                         </form>
                     </div>

@@ -6,7 +6,8 @@ import {
     CalendarDays, Home, Briefcase, Plane, FileText, Target,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { gsap, useGSAP, ScrollTrigger } from "@/lib/gsap";
 import { getLiveUsers, punchIn, punchOut, getAttendance } from "@/app/actions/hrm";
 import { getAllHRMRequests, updateHRMRequestStatus, getPendingRequestsSummary } from "@/app/actions/hrm-requests";
 import { toast } from "sonner";
@@ -115,6 +116,38 @@ export default function SuperAdminDashboard() {
         return `₹${v}`;
     };
 
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useGSAP(() => {
+        // The dashboard scrolls inside the layout's overflow-y-auto div, not the window
+        const scroller = containerRef.current?.closest(".overflow-y-auto") ?? undefined;
+        const mm = gsap.matchMedia();
+        mm.add("(prefers-reduced-motion: no-preference)", () => {
+            gsap.from(".dash-stat", {
+                y: 24,
+                opacity: 0,
+                duration: 0.5,
+                ease: "power2.out",
+                stagger: 0.08,
+                scrollTrigger: { trigger: ".dash-stat", scroller, start: "top 95%", once: true },
+            });
+            gsap.utils.toArray<HTMLElement>(".dash-section").forEach((section) => {
+                gsap.from(section, {
+                    y: 32,
+                    opacity: 0,
+                    duration: 0.7,
+                    ease: "power2.out",
+                    scrollTrigger: { trigger: section, scroller, start: "top 92%", once: true },
+                });
+            });
+        });
+    }, { scope: containerRef });
+
+    // Async data changes section heights; recompute trigger positions
+    useGSAP(() => {
+        ScrollTrigger.refresh();
+    }, { dependencies: [loadingLive, totalPending, kpis] });
+
     const statCards = [
         {
             title: 'Active Users', icon: Users,
@@ -155,7 +188,7 @@ export default function SuperAdminDashboard() {
     };
 
     return (
-        <div className="space-y-5 p-4">
+        <div ref={containerRef} className="space-y-5 p-4">
             {/* Header */}
             <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-border">
                 <div>
@@ -193,7 +226,7 @@ export default function SuperAdminDashboard() {
             {/* Stat cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map(({ title, value, sub, icon: Icon, accent }) => (
-                    <div key={title} className="bg-card border border-border rounded-xl p-5 flex flex-col justify-between h-28">
+                    <div key={title} className="dash-stat bg-card border border-border rounded-xl p-5 flex flex-col justify-between h-28">
                         <div className="flex items-start justify-between">
                             <div>
                                 <p className="text-xs text-muted-foreground font-medium">{title}</p>
@@ -209,7 +242,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Live Staff */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="dash-section bg-card border border-border rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                     <h3 className="font-bold text-foreground flex items-center gap-2">
                         <span className="relative flex h-2.5 w-2.5">
@@ -248,7 +281,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* KPI Section */}
-            <div className="bg-card border border-border rounded-xl p-5">
+            <div className="dash-section bg-card border border-border rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-5">
                     <div className="p-2 bg-primary/8 text-primary rounded-lg">
                         <Target className="w-4 h-4" />
@@ -262,7 +295,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Pending HR Requests */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="dash-section bg-card border border-border rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-wrap gap-3">
                     <div className="flex items-center gap-2">
                         <h3 className="font-bold text-foreground">Pending HR Requests</h3>

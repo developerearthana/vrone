@@ -80,7 +80,7 @@ export default function FRADashboard() {
                 <button
                     onClick={runAnalysis}
                     disabled={analyzing}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-70"
+                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:brightness-[1.08] transition-colors shadow-sm disabled:opacity-70"
                 >
                     <RefreshCw className={`w-4 h-4 ${analyzing ? 'animate-spin' : ''}`} />
                     {analyzing ? 'Analyzing...' : 'Run Risk Analysis'}

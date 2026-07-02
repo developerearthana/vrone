@@ -85,10 +85,10 @@ export default function SalesDashboard() {
             </div>
 
             <div className="stat-grid">
-                <StatCard label="Total Revenue" value={`₹${(stats.revenue / 100000).toFixed(2)} L`} sub="Closed won" icon={TrendingUp} iconColor="text-emerald-600" trend="up" />
-                <StatCard label="Active Deals" value={stats.activeDeals} sub="In progress" icon={ShoppingBag} iconColor="text-blue-600" />
-                <StatCard label="Pipeline Value" value={`₹${(stats.pipelineValue / 100000).toFixed(2)} L`} sub="Potential" icon={CreditCard} iconColor="text-primary" />
-                <StatCard label="New Leads" value={stats.newLeads} sub="Top of funnel" icon={Users} iconColor="text-orange-600" />
+                <StatCard index={0} label="Total Revenue" value={`₹${(stats.revenue / 100000).toFixed(2)} L`} sub="Closed won" icon={TrendingUp} iconColor="text-emerald-600" trend="up" />
+                <StatCard index={1} label="Active Deals" value={stats.activeDeals} sub="In progress" icon={ShoppingBag} iconColor="text-blue-600" />
+                <StatCard index={2} label="Pipeline Value" value={`₹${(stats.pipelineValue / 100000).toFixed(2)} L`} sub="Potential" icon={CreditCard} iconColor="text-primary" />
+                <StatCard index={3} label="New Leads" value={stats.newLeads} sub="Top of funnel" icon={Users} iconColor="text-orange-600" />
             </div>
 
             {/* Main Content */}

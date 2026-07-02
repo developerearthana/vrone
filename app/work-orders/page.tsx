@@ -82,10 +82,10 @@ export default function WorkOrdersDashboard() {
             </div>
 
             <div className="stat-grid">
-                <StatCard label="Open Orders" value={orders.filter(o => o.status === 'Open').length} sub="Total open" icon={ClipboardList} iconColor="text-blue-600" />
-                <StatCard label="In Progress" value={orders.filter(o => o.status === 'In Progress').length} sub="Assigned" icon={RotateCw} iconColor="text-orange-600" />
-                <StatCard label="Completed" value={orders.filter(o => o.status === 'Completed').length} sub="All time" icon={CheckSquare} iconColor="text-green-600" trend="up" />
-                <StatCard label="High Priority" value={orders.filter(o => o.priority === 'High' || o.priority === 'Critical').length} sub="Needs attention" icon={AlertCircle} iconColor="text-red-600" trend="down" />
+                <StatCard index={0} label="Open Orders" value={orders.filter(o => o.status === 'Open').length} sub="Total open" icon={ClipboardList} iconColor="text-blue-600" />
+                <StatCard index={1} label="In Progress" value={orders.filter(o => o.status === 'In Progress').length} sub="Assigned" icon={RotateCw} iconColor="text-orange-600" />
+                <StatCard index={2} label="Completed" value={orders.filter(o => o.status === 'Completed').length} sub="All time" icon={CheckSquare} iconColor="text-green-600" trend="up" />
+                <StatCard index={3} label="High Priority" value={orders.filter(o => o.priority === 'High' || o.priority === 'Critical').length} sub="Needs attention" icon={AlertCircle} iconColor="text-red-600" trend="down" />
             </div>
 
             {/* List */}

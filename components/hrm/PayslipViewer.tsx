@@ -70,7 +70,7 @@ export function PayslipViewer({ data }: PayslipViewerProps) {
                     </button>
                     <button
                         onClick={() => window.print()}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-lg shadow-blue-200"
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-primary-foreground bg-primary hover:brightness-[1.08] rounded-lg transition-colors shadow-lg shadow-primary/20"
                     >
                         <Download className="w-4 h-4" /> Download PDF
                     </button>
@@ -152,10 +152,10 @@ export function PayslipViewer({ data }: PayslipViewerProps) {
                 </div>
 
                 {/* Net Pay */}
-                <div className="bg-white text-white p-6 rounded-xl flex justify-between items-center relative z-10">
+                <div className="bg-foreground text-background p-6 rounded-xl flex justify-between items-center relative z-10">
                     <div>
-                        <p className="text-sm text-gray-400 uppercase tracking-wider font-bold">Net Salary Payable</p>
-                        <p className="text-xs text-gray-500 mt-1">(Total Earnings - Total Deductions)</p>
+                        <p className="text-sm text-background/70 uppercase tracking-wider font-bold">Net Salary Payable</p>
+                        <p className="text-xs text-background/50 mt-1">(Total Earnings - Total Deductions)</p>
                     </div>
                     <div className="text-right">
                         <span className="text-3xl font-mono font-bold">₹{netPay?.toLocaleString('en-IN')}</span>

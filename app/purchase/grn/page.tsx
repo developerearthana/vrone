@@ -20,7 +20,7 @@ export default function GRNPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Goods Received (GRN)</h1>
                     <p className="text-gray-500">Track and verify incoming shipments.</p>
                 </div>
-                <button className="flex items-center gap-2 bg-white text-white px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm">
+                <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:brightness-[1.08] transition-colors shadow-sm">
                     <ClipboardCheck className="w-4 h-4" />
                     Create New GRN
                 </button>
@@ -41,7 +41,7 @@ export default function GRNPage() {
                             </div>
                             <h4 className="font-bold text-gray-800 text-sm mb-1">{item.vendor}</h4>
                             <p className="text-xs text-gray-500 mb-3">{item.items}</p>
-                            <button className="w-full py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors">
+                            <button className="w-full py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded hover:brightness-[1.08] transition-colors">
                                 Receive Goods
                             </button>
                         </div>

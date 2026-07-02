@@ -83,7 +83,7 @@ export default function TransactionsPage() {
                         Filter
                     </Button>
                     <Link href="/accounts/transactions/new">
-                        <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
+                        <Button size="sm">
                             <Plus className="w-4 h-4 mr-2" />
                             Add Record
                         </Button>

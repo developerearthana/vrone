@@ -54,6 +54,7 @@ export default async function MarketingDashboard() {
 
             <div className="stat-grid">
                 <StatCard
+                    index={0}
                     label="Total Budget"
                     value={formatINR(summary.totalBudget)}
                     sub={summary.totalBudget > 0 ? `${formatINR(summary.totalSpent)} spent` : 'No budget set'}
@@ -61,6 +62,7 @@ export default async function MarketingDashboard() {
                     iconColor="text-blue-600"
                 />
                 <StatCard
+                    index={1}
                     label="Active Campaigns"
                     value={summary.activeCampaigns.toString()}
                     sub={summary.endingSoon > 0 ? `${summary.endingSoon} ending this week` : 'None ending soon'}
@@ -68,6 +70,7 @@ export default async function MarketingDashboard() {
                     iconColor="text-primary"
                 />
                 <StatCard
+                    index={2}
                     label="Total Reach"
                     value={formatReach(summary.totalImpressions)}
                     sub="Total impressions"
@@ -75,6 +78,7 @@ export default async function MarketingDashboard() {
                     iconColor="text-orange-600"
                 />
                 <StatCard
+                    index={3}
                     label="Avg. ROI"
                     value={summary.avgRoi > 0 ? `${summary.avgRoi}x` : '—'}
                     sub="Across all campaigns"

@@ -14,7 +14,7 @@ export default async function ClientsPage() {
                     <p className="text-gray-500">View and manage your active clients.</p>
                 </div>
                 <Link href="/contacts/add?type=Client">
-                    <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                    <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:brightness-[1.08] transition-colors shadow-sm">
                         <Plus className="w-4 h-4" />
                         Add Client
                     </button>

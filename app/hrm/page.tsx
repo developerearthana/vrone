@@ -70,10 +70,10 @@ export default function HRMDashboard() {
             </div>
 
             <div className="stat-grid">
-                <StatCard label="Total Employees" value={stats.totalEmployees} sub="Active staff" icon={Users} iconColor="text-primary" onClick={() => setActiveList({ title: "Total Employees", data: lists.employees })} />
-                <StatCard label="Checked In" value={stats.checkedInToday} sub={`${attendanceRate}% attendance today`} icon={UserCheck} iconColor="text-emerald-500" onClick={() => setActiveList({ title: "Checked In", data: lists.checkedIn })} />
-                <StatCard label="Absentees" value={lists.absentees.length || 0} sub="Not punched in" icon={CalendarDays} iconColor="text-amber-500" onClick={() => setActiveList({ title: "Absentees", data: lists.absentees })} />
-                <StatCard label="On Leave" value={stats.onLeaveToday} sub="Approved today" icon={Plane} iconColor="text-blue-500" onClick={() => setActiveList({ title: "On Leave", data: lists.onLeave })} />
+                <StatCard index={0} label="Total Employees" value={stats.totalEmployees} sub="Active staff" icon={Users} iconColor="text-primary" onClick={() => setActiveList({ title: "Total Employees", data: lists.employees })} />
+                <StatCard index={1} label="Checked In" value={stats.checkedInToday} sub={`${attendanceRate}% attendance today`} icon={UserCheck} iconColor="text-emerald-500" onClick={() => setActiveList({ title: "Checked In", data: lists.checkedIn })} />
+                <StatCard index={2} label="Absentees" value={lists.absentees.length || 0} sub="Not punched in" icon={CalendarDays} iconColor="text-amber-500" onClick={() => setActiveList({ title: "Absentees", data: lists.absentees })} />
+                <StatCard index={3} label="On Leave" value={stats.onLeaveToday} sub="Approved today" icon={Plane} iconColor="text-blue-500" onClick={() => setActiveList({ title: "On Leave", data: lists.onLeave })} />
             </div>
 
             {/* Work mode micro-info + New joiners */}

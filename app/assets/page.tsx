@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, Server, Wrench, AlertTriangle, TrendingUp, Download, Printer, ArrowUpRight, UserPlus } from 'lucide-react';
+import { Monitor, Server, Wrench, TrendingUp, Download, Printer, UserPlus } from 'lucide-react';
 import { getAssets } from '@/app/actions/asset';
 import { getUsers } from '@/app/actions/hrm';
 import { useEffect, useState } from 'react';
@@ -8,6 +8,7 @@ import AssetDistributionChart from '@/components/assets/AssetDistributionChart';
 import { exportToCSV, handlePrint } from '@/lib/export-utils';
 import { toast } from 'sonner';
 import { AssetActionModal } from '@/components/assets/AssetActionModal';
+import { StatCard } from '@/components/ui/stat-card';
 
 export default function AssetsDashboard() {
     const [stats, setStats] = useState<any>({ total: 0, assigned: 0, maintenance: 0, value: 0 });
@@ -63,21 +64,21 @@ export default function AssetsDashboard() {
                 <div className="flex gap-2">
                     <button
                         onClick={() => setIsAssignModalOpen(true)}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors"
+                        className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:brightness-[1.08] text-sm font-medium shadow-sm transition-colors"
                     >
                         <UserPlus className="w-4 h-4" />
                         Quick Assign
                     </button>
                     <button
                         onClick={() => exportToCSV(assets, 'assets-list')}
-                        className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-background text-sm font-medium"
+                        className="flex items-center gap-2 bg-card border border-border text-foreground px-3 py-1.5 rounded-lg hover:bg-muted text-sm font-medium"
                     >
                         <Download className="w-4 h-4" />
                         Export
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-background text-sm font-medium"
+                        className="flex items-center gap-2 bg-card border border-border text-foreground px-3 py-1.5 rounded-lg hover:bg-muted text-sm font-medium"
                     >
                         <Printer className="w-4 h-4" />
                         Print
@@ -88,27 +89,12 @@ export default function AssetsDashboard() {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: "Total Assets", value: stats.total, sub: "Items", icon: Monitor, color: "bg-white", textColor: "text-blue-600", border: "border-border" },
-                    { label: "Total Value", value: `₹${(stats.value || 0).toLocaleString('en-IN')}`, sub: "Current Worth", icon: TrendingUp, color: "bg-white", textColor: "text-green-600", border: "border-border" },
-                    { label: "Assigned", value: stats.assigned, sub: "In Use", icon: Server, color: "bg-white", textColor: "text-purple-600", border: "border-border" },
-                    { label: "In Maintenance", value: stats.maintenance, sub: "Unavailable", icon: Wrench, color: "bg-white", textColor: "text-orange-600", border: "border-border" },
+                    { label: "Total Assets", value: stats.total, sub: "Items", icon: Monitor, iconColor: "text-primary" },
+                    { label: "Total Value", value: `₹${(stats.value || 0).toLocaleString('en-IN')}`, sub: "Current Worth", icon: TrendingUp, iconColor: "text-emerald-600" },
+                    { label: "Assigned", value: stats.assigned, sub: "In Use", icon: Server, iconColor: "text-purple-600" },
+                    { label: "In Maintenance", value: stats.maintenance, sub: "Unavailable", icon: Wrench, iconColor: "text-amber-600" },
                 ].map((stat, idx) => (
-                    <div key={idx} className={`glass-card p-5 rounded-xl border ${stat.border} flex flex-col justify-between h-32`}>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</h3>
-                            </div>
-                            <div className={`p-2 rounded-lg ${stat.color}`}>
-                                <stat.icon className={`w-5 h-5 ${stat.textColor}`} />
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                            <span className="flex items-center gap-1">
-                                <ArrowUpRight className="w-3 h-3 text-gray-400" /> {stat.sub}
-                            </span>
-                        </p>
-                    </div>
+                    <StatCard key={stat.label} index={idx} {...stat} />
                 ))}
             </div>
 
@@ -125,7 +111,7 @@ export default function AssetsDashboard() {
                 <div className="lg:col-span-2 glass-card rounded-xl overflow-hidden border border-gray-100 flex flex-col h-[400px]">
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-background/50">
                         <h3 className="text-lg font-bold text-gray-900">Recent Assets</h3>
-                        <button className="text-xs text-blue-600 font-medium hover:text-blue-700">View All</button>
+                        <button className="text-xs text-primary font-medium hover:text-primary/80">View All</button>
                     </div>
                     <div className="overflow-auto flex-1">
                         <table className="w-full text-left text-sm">
@@ -145,9 +131,9 @@ export default function AssetsDashboard() {
                                         <td className="px-4 py-3 text-gray-500">{asset.serialNo || '-'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`text-xs font-medium px-2 py-0.5 rounded
-                                                ${asset.status === 'Available' ? 'bg-white text-green-600' :
-                                                    asset.status === 'Assigned' ? 'bg-white text-blue-600' :
-                                                        'bg-white text-gray-600'}`}>
+                                                ${asset.status === 'Available' ? 'bg-emerald-50 text-emerald-600' :
+                                                    asset.status === 'Assigned' ? 'bg-primary/10 text-primary' :
+                                                        'bg-muted text-muted-foreground'}`}>
                                                 {asset.status}
                                             </span>
                                         </td>

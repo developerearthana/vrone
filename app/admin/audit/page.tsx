@@ -7,6 +7,7 @@ import { getAuditLogs, getComplianceStats } from '@/app/actions/audit';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { StatCard } from '@/components/ui/stat-card';
 
 export default function AuditDashboard() {
     const [logs, setLogs] = useState<any[]>([]);
@@ -57,33 +58,13 @@ export default function AuditDashboard() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="glass-card p-5 rounded-xl border border-red-100 flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium">Security Alerts (24h)</p>
-                        <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.securityAlerts}</h3>
-                    </div>
-                    <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                        <ShieldAlert className="w-6 h-6" />
-                    </div>
-                </div>
-                <div className="glass-card p-5 rounded-xl border border-amber-100 flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium">Expired Documents</p>
-                        <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.expiredDocuments}</h3>
-                    </div>
-                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-                        <AlertTriangle className="w-6 h-6" />
-                    </div>
-                </div>
-                <div className="glass-card p-5 rounded-xl border border-border flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium">System Compliance Score</p>
-                        <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.complianceScore}%</h3>
-                    </div>
-                    <div className="p-2 bg-white text-green-600 rounded-lg">
-                        <FileCheck className="w-6 h-6" />
-                    </div>
-                </div>
+                {[
+                    { label: "Security Alerts (24h)", value: stats.securityAlerts, icon: ShieldAlert, iconColor: "text-red-600" },
+                    { label: "Expired Documents", value: stats.expiredDocuments, icon: AlertTriangle, iconColor: "text-amber-600" },
+                    { label: "System Compliance Score", value: `${stats.complianceScore}%`, icon: FileCheck, iconColor: "text-emerald-600" },
+                ].map((stat, idx) => (
+                    <StatCard key={stat.label} index={idx} {...stat} />
+                ))}
             </div>
 
             {/* Logs Table */}

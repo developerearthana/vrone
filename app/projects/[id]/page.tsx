@@ -195,7 +195,7 @@ export default function ProjectDashboard({ params }: { params: Promise<{ id: str
                         </button>
                         <Link
                             href={`/projects/${id}/stages`}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                            className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:brightness-[1.08] transition-colors flex items-center gap-1.5 shadow-sm"
                         >
                             <LayoutDashboard className="w-3.5 h-3.5" />
                             Full Workflow

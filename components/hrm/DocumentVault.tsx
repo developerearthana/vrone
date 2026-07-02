@@ -443,7 +443,7 @@ export function DocumentVault() {
                                                             <Eye className="w-3.5 h-3.5" /> View
                                                         </button>
                                                         <button onClick={e => handleDownload(doc, e)}
-                                                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
                                                             title="Download">
                                                             <Download className="w-3.5 h-3.5" /> Download
                                                         </button>

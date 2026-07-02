@@ -37,7 +37,7 @@ export default function EventModal({ isOpen, onClose, selectedDate, event, onRef
         },
         alert: false,
         alertType: "Dashboard", // Default
-        color: "bg-white0"
+        color: "bg-blue-500"
     });
 
     useEffect(() => {
@@ -55,7 +55,7 @@ export default function EventModal({ isOpen, onClose, selectedDate, event, onRef
                 },
                 alert: event.alert || false,
                 alertType: event.alertType === 'None' ? 'Dashboard' : (event.alertType || "Dashboard"),
-                color: event.color || "bg-white0"
+                color: event.color || "bg-blue-500"
             });
         } else if (selectedDate) {
             const start = new Date(selectedDate);
@@ -77,7 +77,7 @@ export default function EventModal({ isOpen, onClose, selectedDate, event, onRef
                 recurrence: { frequency: "None", interval: 1, endDate: "" },
                 alert: false,
                 alertType: "Dashboard",
-                color: "bg-white0"
+                color: "bg-blue-500"
             });
         }
     }, [event, selectedDate, isOpen]);

@@ -36,7 +36,7 @@ export default function ReportsPage() {
                             </div>
 
                             <div className="flex gap-3">
-                                <button className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+                                <button className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg text-sm font-medium hover:brightness-[1.08] transition-colors shadow-sm">
                                     View Report
                                 </button>
                                 <button className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-background hover:text-gray-900 transition-colors" title="Download PDF">

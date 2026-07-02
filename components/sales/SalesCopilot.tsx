@@ -235,7 +235,7 @@ export function SalesCopilot() {
                                             className={cn(
                                                 "p-1.5 rounded-lg transition-all",
                                                 input.trim()
-                                                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                                    ? "bg-primary text-primary-foreground hover:brightness-[1.08]"
                                                     : "text-gray-300"
                                             )}
                                         >

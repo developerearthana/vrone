@@ -123,7 +123,7 @@ export default function AccountsSettings() {
                 </div>
 
                 <div className="pt-4 flex justify-end">
-                    <button className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm">
+                    <button className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-lg hover:brightness-[1.08] transition-colors font-medium shadow-sm">
                         <Save className="w-4 h-4" />
                         Save Changes
                     </button>

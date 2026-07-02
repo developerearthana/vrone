@@ -36,7 +36,7 @@ export default function BankingPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Bank Accounts</h1>
                     <p className="text-gray-500">Manage your connected bank accounts and cards.</p>
                 </div>
-                <Button onClick={() => setIsDialogOpen(true)} className="flex items-center gap-2 bg-white text-white px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm">
+                <Button onClick={() => setIsDialogOpen(true)} className="flex items-center gap-2">
                     <Plus className="w-4 h-4" />
                     Add Account
                 </Button>
@@ -55,7 +55,7 @@ export default function BankingPage() {
                     accounts.map((acc) => (
                         <Link href={`/accounts/banking/${acc._id}`} key={acc._id}>
                             <div className="glass-card p-6 rounded-xl hover:shadow-lg transition-all group relative overflow-hidden cursor-pointer hover:-translate-y-1 h-full">
-                                <div className={`absolute top-0 left-0 w-1.5 h-full ${acc.accountType === 'Current' ? 'bg-blue-600' : (acc.accountType === 'Savings' ? 'bg-emerald-500' : 'bg-white0')}`}></div>
+                                <div className={`absolute top-0 left-0 w-1.5 h-full ${acc.accountType === 'Current' ? 'bg-blue-600' : (acc.accountType === 'Savings' ? 'bg-emerald-500' : 'bg-blue-500')}`}></div>
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="p-3 bg-background rounded-xl group-hover:bg-white transition-colors">
                                         <Building className="w-6 h-6 text-gray-700 group-hover:text-blue-600" />
