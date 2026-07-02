@@ -28,6 +28,31 @@ describe('chat-format', () => {
         expect(out).toContain('target="_blank"');
     });
 
+    it('scopes style to <span> only, stripping it from other allowed tags', () => {
+        expect(sanitizeChatHtml('<code style="color:red">x</code>')).toBe('<code>x</code>');
+        expect(sanitizeChatHtml('<p style="color:red">x</p>')).toBe('<p>x</p>');
+    });
+
+    it('scopes href/rel/target to <a> only, stripping them from other tags', () => {
+        expect(sanitizeChatHtml('<p rel="foo" target="bar">x</p>')).toBe('<p>x</p>');
+        expect(sanitizeChatHtml('<b href="https://x.com">x</b>')).toBe('<b>x</b>');
+    });
+
+    it('rejects unsafe CSS values even for allowed properties', () => {
+        expect(sanitizeChatHtml('<span style="color:expression(alert(1))">x</span>')).toBe('<span>x</span>');
+        expect(sanitizeChatHtml('<span style="background-color:url(javascript:alert(1))">x</span>')).toBe('<span>x</span>');
+    });
+
+    it('accepts safe CSS colour value forms', () => {
+        expect(sanitizeChatHtml('<span style="color:#dc2626">x</span>')).toContain('color: #dc2626');
+        expect(sanitizeChatHtml('<span style="color:red">x</span>')).toContain('color: red');
+        expect(sanitizeChatHtml('<span style="background-color:hsl(10, 50%, 50%)">x</span>')).toContain('background-color: hsl(10, 50%, 50%)');
+    });
+
+    it('treats style property names case-insensitively', () => {
+        expect(sanitizeChatHtml('<span style="COLOR: red">x</span>')).toContain('color: red');
+    });
+
     it('normalizeReadBy upgrades legacy strings and keeps objects', () => {
         const out = normalizeReadBy(['u1', { user: 'u2', at: new Date('2026-07-02T10:00:00Z') }]);
         expect(out[0]).toEqual({ user: 'u1', at: null });
