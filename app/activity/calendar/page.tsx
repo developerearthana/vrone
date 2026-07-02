@@ -228,6 +228,7 @@ export default function UnifiedCalendarPage() {
                     title: pForm.title, description: pForm.description,
                     type: pForm.type, start: pStart,
                     end: pIsAllDay ? undefined : (pForm.end || undefined), location: pForm.location,
+                    isAllDay: pIsAllDay,
                     recurrence: { frequency: 'None', interval: 1 },
                 };
                 const res = editingEvent && editingKind === 'personal'
