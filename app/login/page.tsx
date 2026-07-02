@@ -4,15 +4,7 @@ import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { Logo } from '@/components/ui/logo';
 import { useRouter } from 'next/navigation';
-
-function getRoleRedirect(role: string): string {
-    if (role === 'vendor') return '/dashboards/vendor';
-    if (role === 'customer') return '/dashboards/customer';
-    if (role === 'manager') return '/dashboards/manager';
-    if (role === 'staff' || role === 'user' || role === 'employee') return '/dashboards/employee';
-    if (role === 'super-admin' || role === 'admin') return '/dashboards/super-admin';
-    return '/dashboards/employee';
-}
+import { getRoleDashboardHref as getRoleRedirect } from '@/lib/dashboard-route';
 
 export default function LoginPage() {
     const router = useRouter();

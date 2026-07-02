@@ -1,10 +1,12 @@
 "use client";
 
-import { Calendar, UserCheck, Briefcase, Clock, LogIn, LogOut, Loader2, ChevronRight } from 'lucide-react';
+import { Calendar, UserCheck, Briefcase, Clock, LogIn, LogOut, Loader2, ChevronRight, Eye } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { punchIn, punchOut, getAttendance } from '@/app/actions/hrm';
 import { getCompanyEventsForUser } from '@/app/actions/company-calendar';
+import { getUserBasicInfo } from '@/app/actions/user';
 import { toast } from 'sonner';
 import { isToday, format, parseISO } from 'date-fns';
 import Link from 'next/link';
@@ -20,7 +22,13 @@ function getGreeting() {
 
 export default function EmployeeDashboard() {
     const { data: session } = useSession();
-    const userName = session?.user?.name || 'Employee';
+    const searchParams = useSearchParams();
+    const viewUserId = searchParams.get('userId') || undefined;
+
+    const [viewedUser, setViewedUser] = useState<{ id: string; name: string; image?: string } | null>(null);
+    const isViewingOther = !!viewedUser && viewedUser.id !== session?.user?.id;
+
+    const userName = viewedUser?.name || session?.user?.name || 'Employee';
     const firstName = userName.split(' ')[0];
 
     const [greeting, setGreeting] = useState('');
@@ -36,7 +44,13 @@ export default function EmployeeDashboard() {
         setGreeting(getGreeting());
         setTodayLabel(format(new Date(), 'EEEE, d MMMM yyyy'));
     }, []);
-    useEffect(() => { loadData(); }, [session?.user?.id]);
+
+    useEffect(() => {
+        if (!viewUserId) { setViewedUser(null); return; }
+        getUserBasicInfo(viewUserId).then(u => setViewedUser(u));
+    }, [viewUserId]);
+
+    useEffect(() => { loadData(); }, [session?.user?.id, viewUserId]);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -44,11 +58,12 @@ export default function EmployeeDashboard() {
             const now = new Date();
             const start = now;
             const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            const targetUserId = viewUserId || session?.user?.id;
 
             const [attRes, eventsRes] = await Promise.all([
-                getAttendance(undefined, now.getMonth(), now.getFullYear()),
-                session?.user?.id
-                    ? getCompanyEventsForUser(start, end, session.user.id)
+                getAttendance(viewUserId, now.getMonth(), now.getFullYear()),
+                targetUserId
+                    ? getCompanyEventsForUser(start, end, targetUserId)
                     : Promise.resolve({ success: false, data: [] }),
             ]);
 
@@ -100,30 +115,40 @@ export default function EmployeeDashboard() {
     return (
         <div className="space-y-4">
 
+            {/* ── Viewing-someone-else banner ── */}
+            {isViewingOther && (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    <Eye className="w-4 h-4 shrink-0" />
+                    Viewing {viewedUser!.name}'s dashboard (read-only — attendance actions are hidden)
+                </div>
+            )}
+
             {/* ── Header ── */}
             <div className="bg-card border border-border rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-xl font-bold text-foreground">{greeting}{greeting ? ', ' : ''}{firstName}</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{todayLabel}</p>
                 </div>
-                <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg">
-                    {punchTime && (
-                        <div className="text-right hidden md:block">
-                            <p className="text-xs text-muted-foreground">Punched in at</p>
-                            <p className="font-mono font-bold text-sm text-foreground">{punchTime}</p>
-                        </div>
-                    )}
-                    {punchTime && <div className="h-8 w-px bg-border hidden md:block" />}
-                    <button
-                        onClick={handlePunch}
-                        disabled={actionLoading || isLoading}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors disabled:opacity-60 ${isPunchedIn ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-primary text-white hover:bg-primary/90'}`}
-                    >
-                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                            isPunchedIn ? <><LogOut className="w-4 h-4" />Punch Out</> :
-                                <><LogIn className="w-4 h-4" />Punch In</>}
-                    </button>
-                </div>
+                {!isViewingOther && (
+                    <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg">
+                        {punchTime && (
+                            <div className="text-right hidden md:block">
+                                <p className="text-xs text-muted-foreground">Punched in at</p>
+                                <p className="font-mono font-bold text-sm text-foreground">{punchTime}</p>
+                            </div>
+                        )}
+                        {punchTime && <div className="h-8 w-px bg-border hidden md:block" />}
+                        <button
+                            onClick={handlePunch}
+                            disabled={actionLoading || isLoading}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors disabled:opacity-60 ${isPunchedIn ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-primary text-white hover:bg-primary/90'}`}
+                        >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                isPunchedIn ? <><LogOut className="w-4 h-4" />Punch Out</> :
+                                    <><LogIn className="w-4 h-4" />Punch In</>}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ── Quick Stats ── */}
@@ -161,17 +186,23 @@ export default function EmployeeDashboard() {
 
                 {/* Left: KPIs */}
                 <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-card border border-border p-5 rounded-xl">
-                        <h3 className="font-bold text-foreground mb-4">My Targets &amp; KPIs</h3>
-                        <MyKPIs />
-                    </div>
+                    {isViewingOther ? (
+                        <div className="bg-card border border-border p-5 rounded-xl text-sm text-muted-foreground text-center py-10">
+                            Personal KPI targets aren't shown in read-only view.
+                        </div>
+                    ) : (
+                        <div className="bg-card border border-border p-5 rounded-xl">
+                            <h3 className="font-bold text-foreground mb-4">My Targets &amp; KPIs</h3>
+                            <MyKPIs />
+                        </div>
+                    )}
                 </div>
 
                 {/* Right: Quick Request + Company Events */}
                 <div className="space-y-4">
 
                     {/* Quick Request Panel */}
-                    <QuickRequestPanel />
+                    {!isViewingOther && <QuickRequestPanel />}
 
                     {/* Upcoming company events */}
                     <div className="bg-card border border-border rounded-xl p-4">

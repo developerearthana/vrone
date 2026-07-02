@@ -2,6 +2,57 @@
 
 import { adminService } from "@/services/AdminService";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+import connectToDatabase from "@/lib/db";
+import mongoose from "mongoose";
+import User from "@/models/User";
+import AuditLog from "@/models/AuditLog";
+
+// System Health Actions
+
+const READY_STATES: Record<number, string> = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+};
+
+export const getSystemHealth = async () => {
+    const session = await auth();
+    const role = session?.user?.role?.toLowerCase() || '';
+    if (!role.includes('admin')) {
+        return { success: false, error: 'Unauthorized' };
+    }
+
+    try {
+        const dbStart = Date.now();
+        await connectToDatabase();
+        const dbLatencyMs = Date.now() - dbStart;
+        const dbState = READY_STATES[mongoose.connection.readyState] || 'unknown';
+
+        const [totalUsers, activeUsers, recentAuditCount] = await Promise.all([
+            User.countDocuments({}),
+            User.countDocuments({ status: { $ne: 'Inactive' } }),
+            AuditLog.countDocuments({ timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }).catch(() => 0),
+        ]);
+
+        return {
+            success: true,
+            data: {
+                db: { state: dbState, latencyMs: dbLatencyMs },
+                uptimeSeconds: Math.floor(process.uptime()),
+                nodeVersion: process.version,
+                env: process.env.NODE_ENV || 'development',
+                totalUsers,
+                activeUsers,
+                recentAuditCount,
+                checkedAt: new Date().toISOString(),
+            },
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Health check failed' };
+    }
+};
 
 export const getAdminDashboardData = async () => {
     try {

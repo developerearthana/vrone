@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Clock, FileText, TrendingUp, ArrowUpRight, CheckSquare, Target, Loader2, LogIn, LogOut, ChevronRight } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Users, Clock, FileText, TrendingUp, ArrowUpRight, CheckSquare, Target, Loader2, LogIn, LogOut, ChevronRight, Eye } from "lucide-react";
 import { format, isToday } from "date-fns";
 import MyKPIs from "@/components/kpi/MyKPIs";
 import QuickRequestPanel from "@/components/hrm/QuickRequestPanel";
@@ -10,6 +12,7 @@ import { getTeams } from "@/app/actions/organization";
 import { getMyKPIAssignments } from "@/app/actions/kpi-assignments";
 import { punchIn, punchOut, getAttendance } from "@/app/actions/hrm";
 import { getPendingRequestsSummary } from "@/app/actions/hrm-requests";
+import { getUserBasicInfo } from "@/app/actions/user";
 import { toast } from "sonner";
 
 type TeamType = {
@@ -27,6 +30,12 @@ type KPIType = {
 };
 
 export default function ManagerDashboard() {
+    const { data: session } = useSession();
+    const searchParams = useSearchParams();
+    const viewUserId = searchParams.get('userId') || undefined;
+    const [viewedUser, setViewedUser] = useState<{ id: string; name: string; image?: string } | null>(null);
+    const isViewingOther = !!viewedUser && viewedUser.id !== session?.user?.id;
+
     const [teams, setTeams] = useState<TeamType[]>([]);
     const [kpis, setKpis] = useState<KPIType[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,6 +46,11 @@ export default function ManagerDashboard() {
     const [pendingSummary, setPendingSummary] = useState<Record<string, number>>({});
     const [attendanceToday, setAttendanceToday] = useState<{ present: number; total: number }>({ present: 0, total: 0 });
     const [todayLabel, setTodayLabel] = useState('');
+
+    useEffect(() => {
+        if (!viewUserId) { setViewedUser(null); return; }
+        getUserBasicInfo(viewUserId).then(u => setViewedUser(u));
+    }, [viewUserId]);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -57,7 +71,7 @@ export default function ManagerDashboard() {
             try {
                 const now = new Date();
                 const [attRes, summaryRes] = await Promise.all([
-                    getAttendance(undefined, now.getMonth(), now.getFullYear()),
+                    getAttendance(viewUserId, now.getMonth(), now.getFullYear()),
                     getPendingRequestsSummary(),
                 ]);
                 if (attRes.success && attRes.data) {
@@ -75,7 +89,7 @@ export default function ManagerDashboard() {
                 }
             } catch (e) { console.warn('Dashboard load failed', e); }
         })();
-    }, [load]);
+    }, [load, viewUserId]);
 
     const handlePunch = async () => {
         setActionLoading(true);
@@ -124,6 +138,14 @@ export default function ManagerDashboard() {
     return (
         <div className="space-y-4">
 
+            {/* ── Viewing-someone-else banner ── */}
+            {isViewingOther && (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    <Eye className="w-4 h-4 shrink-0" />
+                    Viewing {viewedUser!.name}'s dashboard (read-only — attendance actions are hidden)
+                </div>
+            )}
+
             {/* ── Header ── */}
             <div className="bg-card border border-border rounded-xl p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div className="flex items-center gap-3">
@@ -131,7 +153,7 @@ export default function ManagerDashboard() {
                         <Users className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-foreground">Manager Overview</h1>
+                        <h1 className="text-xl font-bold text-foreground">{isViewingOther ? `${viewedUser!.name}'s Overview` : 'Manager Overview'}</h1>
                         <p className="text-xs text-muted-foreground">{todayLabel}</p>
                     </div>
                 </div>
@@ -142,24 +164,26 @@ export default function ManagerDashboard() {
                     >
                         <Target className="w-4 h-4 text-primary" />KPI Assignment
                     </Link>
-                    <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg">
-                        {punchTime && (
-                            <div className="text-right hidden md:block">
-                                <p className="text-xs text-muted-foreground">Punched in at</p>
-                                <p className="font-mono font-bold text-sm">{punchTime}</p>
-                            </div>
-                        )}
-                        {punchTime && <div className="h-8 w-px bg-border hidden md:block" />}
-                        <button
-                            onClick={handlePunch}
-                            disabled={actionLoading}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60 ${isPunchedIn ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-primary text-white hover:bg-primary/90'}`}
-                        >
-                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                                isPunchedIn ? <><LogOut className="w-4 h-4" />Punch Out</> :
-                                    <><LogIn className="w-4 h-4" />Punch In</>}
-                        </button>
-                    </div>
+                    {!isViewingOther && (
+                        <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-lg">
+                            {punchTime && (
+                                <div className="text-right hidden md:block">
+                                    <p className="text-xs text-muted-foreground">Punched in at</p>
+                                    <p className="font-mono font-bold text-sm">{punchTime}</p>
+                                </div>
+                            )}
+                            {punchTime && <div className="h-8 w-px bg-border hidden md:block" />}
+                            <button
+                                onClick={handlePunch}
+                                disabled={actionLoading}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60 ${isPunchedIn ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-primary text-white hover:bg-primary/90'}`}
+                            >
+                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                    isPunchedIn ? <><LogOut className="w-4 h-4" />Punch Out</> :
+                                        <><LogIn className="w-4 h-4" />Punch In</>}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -262,15 +286,17 @@ export default function ManagerDashboard() {
                         )}
                     </div>
 
-                    <div className="bg-card border border-border p-5 rounded-xl">
-                        <h3 className="font-bold text-foreground mb-4">My Targets &amp; KPIs</h3>
-                        <MyKPIs />
-                    </div>
+                    {!isViewingOther && (
+                        <div className="bg-card border border-border p-5 rounded-xl">
+                            <h3 className="font-bold text-foreground mb-4">My Targets &amp; KPIs</h3>
+                            <MyKPIs />
+                        </div>
+                    )}
                 </div>
 
                 {/* Right: Quick Request + Admin shortcut */}
                 <div className="space-y-4">
-                    <QuickRequestPanel />
+                    {!isViewingOther && <QuickRequestPanel />}
 
                     {/* Admin redirect for approvals */}
                     <Link

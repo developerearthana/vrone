@@ -18,6 +18,7 @@ import { uploadFile } from "@/app/actions/upload";
 import { updateProfile } from "@/app/actions/user-profile";
 import { toast } from "@/components/ui/toaster";
 import { useRouter } from "next/navigation";
+import { getRoleDashboardHref } from "@/lib/dashboard-route";
 
 const breadcrumbNameMap: { [key: string]: string } = {
     masters: "Masters",
@@ -156,7 +157,11 @@ export function Header({ user }: { user?: any }) {
                         <span className="text-foreground font-semibold">Dashboard</span>
                     )}
                     {pathSegments.map((segment, index) => {
-                        const href = `/${pathSegments.slice(0, index + 1).join('/')}`;
+                        // "/dashboards" itself has no page — route it to the
+                        // logged-in user's own dashboard instead of 404ing.
+                        const href = segment === 'dashboards'
+                            ? getRoleDashboardHref(userRole)
+                            : `/${pathSegments.slice(0, index + 1).join('/')}`;
                         const isId = /^[0-9a-fA-F]{24}$/.test(segment);
                         const name = isId
                             ? "Details"

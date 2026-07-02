@@ -5,6 +5,26 @@ import User, { IUser } from "@/models/User";
 import { z } from "zod";
 import { createJSONAction } from "@/lib/safe-action";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+
+/**
+ * Basic display info for a user, used when an admin/manager/HR viewer opens
+ * someone else's dashboard (?userId=) so the page can show whose data it's
+ * displaying. Returns null (not an error) for non-privileged viewers so the
+ * caller can silently fall back to the viewer's own dashboard.
+ */
+export async function getUserBasicInfo(userId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+    const role = session.user.role?.toLowerCase() || '';
+    const isPrivileged = role.includes('admin') || role.includes('manager') || role.includes('hr');
+    if (!isPrivileged) return null;
+
+    await connectToDatabase();
+    const user = await User.findById(userId).select('name image role').lean<{ _id: any; name: string; image?: string; role: string }>();
+    if (!user) return null;
+    return { id: user._id.toString(), name: user.name, image: user.image, role: user.role };
+}
 
 export async function getDashboardUsers() {
     await connectToDatabase();

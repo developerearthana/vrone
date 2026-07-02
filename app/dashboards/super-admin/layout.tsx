@@ -10,7 +10,7 @@ const adminLinks = [
     { name: 'Company Calendar', href: '/dashboards/super-admin/calendar', icon: CalendarRange },
     { name: 'System Health', href: '/dashboards/super-admin/health', icon: Activity },
     { name: 'User Types', href: '/masters/usertypes', icon: Users },
-    { name: 'Settings', href: '/dashboards/super-admin/settings', icon: Settings },
+    { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function SuperAdminLayout({
